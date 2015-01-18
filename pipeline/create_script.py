@@ -5,7 +5,7 @@ dir_vcf = os.environ["dir_vcf"]
 dir_analyzed_sample = os.environ["dir_analyzed_sample"]
 dir_bin = os.environ["dir_bin"]
 hg19=os.environ["hg19"]
-num_split=5
+num_split=7
 num_nct="4"
 
 
@@ -162,9 +162,9 @@ with open("./script/merge_bam.sh", "w") as merge_bam_file:
 
 
 #set the execute for the shell
-os.chmod("./script/bqsr.sh", stat.S_IEXEC)
-os.chmod("./script/apply.sh", stat.S_IEXEC)
-os.chmod("./script/merge_bqsr.sh", stat.S_IEXEC)
-os.chmod("./script/merge_bam.sh", stat.S_IEXEC)
-os.chmod("./script/htc.sh", stat.S_IEXEC)
-os.chmod("./script/merge_htc.sh", stat.S_IEXEC)
+os.chmod("./script/bqsr.sh", stat.S_IREAD | stat.S_IWRITE | stat.S_IEXEC)
+os.chmod("./script/apply.sh", stat.S_IREAD | stat.S_IWRITE | stat.S_IEXEC)
+os.chmod("./script/merge_bqsr.sh", stat.S_IREAD | stat.S_IWRITE | stat.S_IEXEC)
+os.chmod("./script/merge_bam.sh", stat.S_IREAD | stat.S_IWRITE | stat.S_IEXEC)
+os.chmod("./script/htc.sh", stat.S_IREAD | stat.S_IWRITE | stat.S_IEXEC)
+os.chmod("./script/merge_htc.sh", stat.S_IREAD | stat.S_IWRITE | stat.S_IEXEC)
