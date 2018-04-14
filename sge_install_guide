@@ -1,0 +1,193 @@
+  
+http://sysadm.mielnet.pl/grid-engine-installation-on-centos-6/
+
+My notes for installing Son of Grid Engine (SGE) on commodity cluster.
+
+golden_h
+
+Page Contents [hide]
+
+    1 Intro
+    2 Install EPEL on all nodes
+    3 Install prerequisits on all nodes
+    4 Install GridEngine packages on all nodes
+    5 Install Qmaster
+        5.1 NFS export SGE root to nodes in your cluster
+    6 Installing exec nodes
+    7 Adding queues (for FSL)
+    8 Monitoring your cluster
+
+Intro
+
+Grab from here  the following RPM packages:
+
+gridengine-8.1.9-1.el6.x86_64.rpm
+gridengine-debuginfo-8.1.9-1.el6.x86_64.rpm
+gridengine-devel-8.1.9-1.el6.noarch.rpm
+gridengine-drmaa4ruby-8.1.9-1.el6.noarch.rpm
+gridengine-execd-8.1.9-1.el6.x86_64.rpm
+gridengine-guiinst-8.1.9-1.el6.noarch.rpm
+gridengine-qmaster-8.1.9-1.el6.x86_64.rpm
+gridengine-qmon-8.1.9-1.el6.x86_64.rpm
+
+(at the time of writing version 8.1.9).
+
+For your convenience, the following one liner should fetch these for you 🙂
+
+cd /tmp; for i in gridengine-8.1.9-1.el6.x86_64.rpm gridengine-debuginfo-8.1.9-1.el6.x86_64.rpm gridengine-devel-8.1.9-1.el6.noarch.rpm gridengine-drmaa4ruby-8.1.9-1.el6.noarch.rpm gridengine-execd-8.1.9-1.el6.x86_64.rpm gridengine-guiinst-8.1.9-1.el6.noarch.rpm gridengine-qmaster-8.1.9-1.el6.x86_64.rpm gridengine-qmon-8.1.9-1.el6.x86_64.rpm; do wget https://arc.liv.ac.uk/downloads/SGE/releases/8.1.9/$i;done
+
+Pick one server that will be serving as a master node in your cluster, referred later as qmaster.
+For smaller clusters it can happily run on small VM (say 2x vCPU, 2GB RAM) maximising your resource usage.
+Install EPEL on all nodes
+
+rpm -Uvh http://dl.fedoraproject.org/pub/epel/epel-release-latest-6.noarch.rpm
+
+Install prerequisits on all nodes
+
+yum install -y perl-Env.noarch perl-Exporter.noarch perl-File-BaseDir.noarch perl-Getopt-Long.noarch perl-libs perl-POSIX-strptime.x86_64 perl-XML-Simple.noarch jemalloc munge-libs hwloc lesstif csh ruby xorg-x11-fonts xterm java xorg-x11-fonts-ISO8859-1-100dpi xorg-x11-fonts-ISO8859-1-75dpi mailx
+
+Install GridEngine packages on all nodes
+
+cd /tmp/
+yum localinstall gridengine-*
+
+Install Qmaster
+
+cd /opt/sge
+./install_qmaster
+
+Accepting defaults should just work, well you might want to run it under different user than r00t so:
+
+"Please enter a valid user name >> sgeadmin"
+
+Make sure to add GridEngine to global environment:
+
+cp /opt/sge/default/common/settings.sh /etc/profile.d/sge.sh
+
+NFS export SGE root to nodes in your cluster
+
+vim /etc/exports
+
+/opt/sge 10.10.80.0/255.255.255.0(rw,no_root_squash,sync,no_subtree_check,nohide)
+
+and mount share on exec nodes
+
+vim /etc/fstab
+
+qmaster:/opt/sge 	/opt/sge nfs	tcp,intr,noatime	0	0
+
+ 
+Installing exec nodes
+
+cd /opt/sge
+./install_execd
+
+Just go with the flow here. Once done you should be able to see your exec nodes:
+
+# qhost 
+HOSTNAME                ARCH         NCPU NSOC NCOR NTHR  LOAD  MEMTOT  MEMUSE  SWAPTO  SWAPUS
+----------------------------------------------------------------------------------------------
+global                  -               -    -    -    -     -       -       -       -       -
+execnode01              lx-amd64        8    2    8    8  0.12   15.6G    5.2G   20.0G  104.9M
+execnode02        	lx-amd64        8    2    8    8  0.00   15.7G    1.3G   21.1G     0.0
+execnode03              lx-amd64        8    2    8    8  0.00   15.7G    1.4G   21.1G   18.6M
+
+That means you can start submitting jobs to your cluster, either interactive with qlogin or qrsh or batch jobs with qsub.
+Adding queues (for FSL)
+
+In most cases it’s enough to have a default queue called all.q
+
+This example will define new queues with different priorities (nice levels):
+
+# change defaults for all.q
+qconf -sq all.q |\
+    sed -e 's/bin\/csh/bin\/sh/' |\
+    sed -e 's/posix_compliant/unix_behavior/' |\
+    sed -e 's/priority              0/priority 20/' >\
+    /tmp/q.tmp
+qconf -Mq /tmp/q.tmp
+
+# add other queues
+sed -e 's/all.q/verylong.q/' /tmp/q.tmp >\
+   /tmp/verylong.q
+qconf -Aq /tmp/verylong.q
+
+sed -e 's/all.q/long.q/' /tmp/q.tmp |\
+   sed -e 's/priority *20/priority 15/' >\
+   /tmp/long.q
+qconf -Aq /tmp/long.q
+
+sed -e 's/all.q/short.q/' /tmp/q.tmp |\
+   sed -e 's/priority *20/priority 10/' >\
+   /tmp/short.q
+qconf -Aq /tmp/short.q
+
+sed -e 's/all.q/veryshort.q/' /tmp/q.tmp |\
+   sed -e 's/priority *20/priority 5/' >\
+   /tmp/veryshort.q
+qconf -Aq /tmp/veryshort.q
+
+Monitoring your cluster
+
+ 
+
+Use qmon GUI or the following commands:
+
+# qstat -f
+
+queuename                      qtype resv/used/tot. load_avg arch          states
+---------------------------------------------------------------------------------
+all.q@execnode01 BIP   0/0/8          0.12     lx-amd64      
+---------------------------------------------------------------------------------
+all.q@execnode02 BIP   0/0/8          0.00     lx-amd64      
+---------------------------------------------------------------------------------
+all.q@execnode03 BIP   0/0/8          0.00     lx-amd64      
+---------------------------------------------------------------------------------
+long.q@execnode01 BIP   0/0/8          0.12     lx-amd64      
+---------------------------------------------------------------------------------
+long.q@execnode02 BIP   0/0/8          0.00     lx-amd64      
+---------------------------------------------------------------------------------
+long.q@execnode03 BIP   0/0/8          0.00     lx-amd64      
+---------------------------------------------------------------------------------
+short.q@execnode01 BIP   0/0/8          0.12     lx-amd64      
+---------------------------------------------------------------------------------
+short.q@execnode02 BIP   0/0/8          0.00     lx-amd64      
+---------------------------------------------------------------------------------
+short.q@execnode03 BIP   0/0/8          0.00     lx-amd64      
+---------------------------------------------------------------------------------
+verylong.q@execnode01 BIP   0/0/8          0.12     lx-amd64      
+---------------------------------------------------------------------------------
+verylong.q@execnode02 BIP   0/0/8          0.00     lx-amd64      
+---------------------------------------------------------------------------------
+verylong.q@execnode03 BIP   0/0/8          0.00     lx-amd64      
+---------------------------------------------------------------------------------
+veryshort.q@execnode01 BIP   0/0/8          0.12     lx-amd64      
+---------------------------------------------------------------------------------
+veryshort.q@execnode02 BIP   0/0/8          0.00     lx-amd64      
+---------------------------------------------------------------------------------
+veryshort.q@execnode03 BIP   0/0/8          0.00     lx-amd64   
+
+# qhost -q
+
+HOSTNAME                ARCH         NCPU NSOC NCOR NTHR  LOAD  MEMTOT  MEMUSE  SWAPTO  SWAPUS
+----------------------------------------------------------------------------------------------
+global                  -               -    -    -    -     -       -       -       -       -
+execnode01            lx-amd64        8    2    8    8  0.12   15.6G    5.2G   20.0G  104.9M
+   all.q                BIP   0/0/8         
+   long.q               BIP   0/0/8         
+   short.q              BIP   0/0/8         
+   veryshort.q          BIP   0/0/8         
+   verylong.q           BIP   0/0/8         
+execnode02        lx-amd64        8   2    8    8  0.00   15.7G    1.3G   21.1G     0.0
+   all.q                BIP   0/0/8         
+   long.q               BIP   0/0/8         
+   short.q              BIP   0/0/8         
+   veryshort.q          BIP   0/0/8         
+   verylong.q           BIP   0/0/8         
+execnode03                lx-amd64    8    2    8    8  0.00   15.7G    1.4G   21.1G   18.6M
+   all.q                BIP   0/0/8         
+   long.q               BIP   0/0/8         
+   short.q              BIP   0/0/8         
+   veryshort.q          BIP   0/0/8         
+   verylong.q           BIP   0/0/8         
+
