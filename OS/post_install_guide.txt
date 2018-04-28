@@ -23,3 +23,12 @@ vi /etc/hosts
 192.168.1.203 gene-3
 192.168.1.204 gene-4
 
+#create lvm on two 8T disks
+yum install system-storage-manager
+ssm create --fs xfs -p data -n data_volume /dev/sdb /dev/sdc
+vi /etc/fstab
+/dev/data/data_volume   /home                 xfs     defaults        0 0
+
+#reload the fstab
+mount -a
+
