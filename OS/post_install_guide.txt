@@ -39,6 +39,25 @@ yum -y install epel-release
 wget http://build.openhpc.community/OpenHPC:/1.3/CentOS_7/x86_64/ohpc-release-1.3-1.el7.x86_64.rpm
 rpm -ivh ohpc-release-1.3-1.el7.x86_64.rpm
 
+#create ssh key
+ssh-keygen -t rsa -b 4096
+ssh-copy-id -i ~/.ssh/id_rsa.pub root@gene-1
+ssh-copy-id -i ~/.ssh/id_rsa.pub root@gene-2
+ssh-copy-id -i ~/.ssh/id_rsa.pub root@gene-3
+ssh-copy-id -i ~/.ssh/id_rsa.pub root@gene-4
+
+#change the firewall setting
+firewall-cmd --permanent --zone=internal --change-interface=eno1
+
+firewall-cmd --permanent --zone=internal --add-port=6817/udp
+firewall-cmd --permanent --zone=internal --add-port=6817/tcp
+firewall-cmd --permanent --zone=internal --add-port=6818/tcp
+firewall-cmd --permanent --zone=internal --add-port=6818/udp
+firewall-cmd --permanent --zone=internal --add-port=7321/tcp
+firewall-cmd --permanent --zone=internal --add-port=7321/udp
+firewall-cmd --reload
+
+
 Node-1(Master+Compute)
 yum -y install ohpc-slurm-server
 vi /etc/slurm/slurm.conf
@@ -61,3 +80,24 @@ vi /etc/ntpd.conf
 server gene-1
 systemctl enable ntpd.service
 systemctl restart ntpd
+
+
+
+scp /etc/slurm/slurm.conf root@gene-2:/etc/slurm/slurm.conf
+scp /etc/slurm/slurm.conf root@gene-3:/etc/slurm/slurm.conf
+scp /etc/slurm/slurm.conf root@gene-4:/etc/slurm/slurm.conf
+
+dd if=/dev/random bs=1 count=1024 >/etc/munge/munge.key
+scp /etc/munge/munge.key root@gene-2:/etc/munge/munge.key
+scp /etc/munge/munge.key root@gene-3:/etc/munge/munge.key
+scp /etc/munge/munge.key root@gene-4:/etc/munge/munge.key
+
+
+# Start slurm clients on host hosts
+systemctl enable munge
+systemctl enable slurmctld
+systemctl start munge
+systemctl start slurmctld
+
+# Start slurm clients on compute hosts
+[sms]# pdsh -w $compute_prefix[1-4] systemctl start slurmd
