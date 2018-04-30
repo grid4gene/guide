@@ -82,16 +82,20 @@ systemctl enable ntpd.service
 systemctl restart ntpd
 
 
+# create slurmctl directory on host hosts
+mkdir -p /var/log/slurm
+mkdir -p /var/spool/slurm/ctld
 
+#copy slurm configuration file to compute node
 scp /etc/slurm/slurm.conf root@gene-2:/etc/slurm/slurm.conf
 scp /etc/slurm/slurm.conf root@gene-3:/etc/slurm/slurm.conf
 scp /etc/slurm/slurm.conf root@gene-4:/etc/slurm/slurm.conf
 
+#copy munge configuration file and key to compute node
 dd if=/dev/random bs=1 count=1024 >/etc/munge/munge.key
 scp /etc/munge/munge.key root@gene-2:/etc/munge/munge.key
 scp /etc/munge/munge.key root@gene-3:/etc/munge/munge.key
 scp /etc/munge/munge.key root@gene-4:/etc/munge/munge.key
-
 
 # Start slurm clients on host hosts
 systemctl enable munge
@@ -100,4 +104,17 @@ systemctl start munge
 systemctl start slurmctld
 
 # Start slurm clients on compute hosts
-[sms]# pdsh -w $compute_prefix[1-4] systemctl start slurmd
+pdsh -w gene-[1-4] systemctl enable munge
+pdsh -w gene-[1-4] systemctl start munge
+pdsh -w gene-[1-4] systemctl enable slurmd
+pdsh -w gene-[1-4] systemctl start slurmd
+
+#install the development packages
+yum -y install ohpc-autotools
+yum -y install gnu7-compilers-ohpc
+yum -y install openmpi3-pmix-slurm-gnu7-ohpc.x86_64
+yum -y install ohpc-gnu7-perf-tools
+yum -y install lmod-defaults-gnu7-openmpi3-ohpc
+
+
+
