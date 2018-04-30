@@ -49,12 +49,9 @@ ssh-copy-id -i ~/.ssh/id_rsa.pub root@gene-4
 #change the firewall setting
 firewall-cmd --permanent --zone=internal --change-interface=eno1
 
-firewall-cmd --permanent --zone=internal --add-port=6817/udp
-firewall-cmd --permanent --zone=internal --add-port=6817/tcp
-firewall-cmd --permanent --zone=internal --add-port=6818/tcp
-firewall-cmd --permanent --zone=internal --add-port=6818/udp
-firewall-cmd --permanent --zone=internal --add-port=7321/tcp
-firewall-cmd --permanent --zone=internal --add-port=7321/udp
+firewall-cmd --permanent --zone=internal --add-port=1-65535/udp
+firewall-cmd --permanent --zone=internal --add-port=1-65535/tcp
+firewall-cmd --add-port=5901/tcp
 firewall-cmd --reload
 
 
