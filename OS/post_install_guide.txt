@@ -4,11 +4,6 @@ systemctl set-default multi-user.target
 #disable SELinux
 SELINUX=disabled
 
-#disable IPv6
-vi /etc/sysctl.conf
-net.ipv6.conf.all.disable_ipv6 = 1
-net.ipv6.conf.default.disable_ipv6 = 1
-
 #Fix ssh login slow issue
 vi /etc/ssh/sshd_config
 # add this line
@@ -28,12 +23,29 @@ vi /etc/hosts
 
 #create lvm on two 8T disks
 yum install system-storage-manager
-ssm create --fs xfs -p data -n data_volume /dev/sdb /dev/sdc
+ssm create --fs xfs -p data -n data_volume /dev/sdb
+ssm create --fs xfs -p share -n share_volume /dev/sdc
+
+mkdir /share
+chmod 777 /share
+
 vi /etc/fstab
 /dev/data/data_volume   /home                 xfs     defaults        0 0
-
+/dev/share/share_volume   /share                 xfs     defaults        0 0
 #reload the fstab
 mount -a
+
+#share the NFS for /share on Master
+vi /etc/exports
+/share *(rw,no_subtree_check,fsid=10,no_root_squash)
+exportfs -a
+systemctl restart nfs-server
+systemctl enable nfs-server
+
+#mount the NFS for /share on Compute
+vi /etc/fstab
+gene-1:/share           /share                nfs     nfsvers=3,nodev,nosuid,noatime 0 0
+
 
 yum -y install epel-release
 wget http://build.openhpc.community/OpenHPC:/1.3/CentOS_7/x86_64/ohpc-release-1.3-1.el7.x86_64.rpm
