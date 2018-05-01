@@ -1,11 +1,75 @@
 
-#disable the OPA HFI interface
-echo 0 > /sys/bus/pci/slots/785/power
 
+
+#example for interactive MPI test with SLURM
+
+# Switch to "test" user
 su - test
 cd /share/test
 
+# Compile MPI "hello world" example
 mpicc -O3 /opt/ohpc/pub/examples/mpi/hello.c
 
-srun -n 8 -N 2 --pty /bin/bash
+# Submit interactive job request and use prun to launch executable
+srun -n 8 -N 4 --pty /bin/bash
 prun ./a.out
+[prun] Master compute host = gene-1
+[prun] Resource manager = slurm
+[prun] Launch cmd = srun --mpi=pmix ./a.out (family=openmpi3)
+    --> Process #   2 of   8 is alive. -> gene-2
+    --> Process #   4 of   8 is alive. -> gene-3
+    --> Process #   5 of   8 is alive. -> gene-3
+    --> Process #   3 of   8 is alive. -> gene-2
+
+ Hello, world (8 procs total)
+    --> Process #   0 of   8 is alive. -> gene-1
+    --> Process #   6 of   8 is alive. -> gene-4
+    --> Process #   1 of   8 is alive. -> gene-1
+    --> Process #   7 of   8 is alive. -> gene-4
+
+
+
+
+
+#example for batch execution MPI test with SLURM
+# Switch to "test" user
+su - test
+cd /share/test
+cp /opt/ohpc/pub/examples/slurm/job.mpi .
+cat job.mpi
+#!/bin/bash
+
+#SBATCH -J test               # Job name
+#SBATCH -o job.%j.out         # Name of stdout output file (%j expands to jobId)
+#SBATCH -N 2                  # Total number of nodes requested
+#SBATCH -n 16                 # Total number of mpi tasks requested
+#SBATCH -t 01:30:00           # Run time (hh:mm:ss) - 1.5 hours
+
+# Launch MPI-based executable
+
+prun ./a.out
+
+sbatch job.mpi
+cat job.51.out
+[prun] Master compute host = gene-1
+[prun] Resource manager = slurm
+[prun] Launch cmd = srun --mpi=pmix ./a.out (family=openmpi3)
+    --> Process #   3 of  16 is alive. -> gene-1
+    --> Process #   2 of  16 is alive. -> gene-1
+    --> Process #   5 of  16 is alive. -> gene-1
+    --> Process #  10 of  16 is alive. -> gene-2
+    --> Process #   1 of  16 is alive. -> gene-1
+    --> Process #   4 of  16 is alive. -> gene-1
+
+ Hello, world (16 procs total)
+    --> Process #   0 of  16 is alive. -> gene-1
+    --> Process #   6 of  16 is alive. -> gene-1
+    --> Process #   7 of  16 is alive. -> gene-1
+    --> Process #  12 of  16 is alive. -> gene-2
+    --> Process #  14 of  16 is alive. -> gene-2
+    --> Process #  15 of  16 is alive. -> gene-2
+    --> Process #   8 of  16 is alive. -> gene-2
+    --> Process #  11 of  16 is alive. -> gene-2
+    --> Process #  13 of  16 is alive. -> gene-2
+    --> Process #   9 of  16 is alive. -> gene-2
+
