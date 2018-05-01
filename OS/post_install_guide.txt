@@ -21,6 +21,11 @@ vi /etc/hosts
 192.168.1.203 gene-3
 192.168.1.204 gene-4
 
+#disable the OPA HFI interface, as we don't have the OPA swtich
+#SLURM/MPI will default use the OPA, which will casue problem
+# use the "lspci -v" to find the PCIe slot, which 785
+echo 0 > /sys/bus/pci/slots/785/power
+
 #create lvm on two 8T disks
 yum install system-storage-manager
 ssm create --fs xfs -p data -n data_volume /dev/sdb
@@ -32,6 +37,7 @@ chmod 777 /share
 vi /etc/fstab
 /dev/data/data_volume   /home                 xfs     defaults        0 0
 /dev/share/share_volume   /share                 xfs     defaults        0 0
+
 #reload the fstab
 mount -a
 
@@ -46,12 +52,12 @@ systemctl enable nfs-server
 vi /etc/fstab
 gene-1:/share           /share                nfs     nfsvers=3,nodev,nosuid,noatime 0 0
 
-
+#install the yum repo for epel and openHPC
 yum -y install epel-release
 wget http://build.openhpc.community/OpenHPC:/1.3/CentOS_7/x86_64/ohpc-release-1.3-1.el7.x86_64.rpm
 rpm -ivh ohpc-release-1.3-1.el7.x86_64.rpm
 
-#create ssh key
+#create ssh key on all the nodes
 ssh-keygen -t rsa -b 4096
 ssh-copy-id -i ~/.ssh/id_rsa.pub root@gene-1
 ssh-copy-id -i ~/.ssh/id_rsa.pub root@gene-2
@@ -59,37 +65,38 @@ ssh-copy-id -i ~/.ssh/id_rsa.pub root@gene-3
 ssh-copy-id -i ~/.ssh/id_rsa.pub root@gene-4
 
 #change the firewall setting
+#move the eno1 to internal zone
 firewall-cmd --permanent --zone=internal --change-interface=eno1
-
+#enable all the port on the internal zone
 firewall-cmd --permanent --zone=internal --add-port=1-65535/udp
 firewall-cmd --permanent --zone=internal --add-port=1-65535/tcp
+#enable the VNCserver port on the firewall
 firewall-cmd --add-port=5901/tcp
 firewall-cmd --reload
 
-
-Node-1(Master+Compute)
+#install the packages on Node-1(Master+Compute)
 yum -y install ohpc-slurm-server
+#configura the slurm
 vi /etc/slurm/slurm.conf
 ControlMachine=gene-1
 NodeName=gene-[1-4] Sockets=1 CoresPerSocket=68 ThreadsPerCore=4 State=UNKNOWN
 yum install ohpc-base
 yum install ohpc-base-compute
 
-#start NTP server
+#start NTP server on Master
 systemctl enable ntpd.service
 systemctl restart ntpd
 
-Node-2/3/4(Compute)
+# install the packages on Node-2/3/4(Compute)
 yum install ohpc-base
 yum install ohpc-base-compute
 yum install ohpc-slurm-client
 
-#config the NTP Server
+#config the NTP on the Compute node
 vi /etc/ntpd.conf
 server gene-1
 systemctl enable ntpd.service
 systemctl restart ntpd
-
 
 # create slurmctl directory on host hosts
 mkdir -p /var/log/slurm
@@ -125,5 +132,10 @@ yum -y install openmpi3-pmix-slurm-gnu7-ohpc.x86_64
 yum -y install ohpc-gnu7-perf-tools
 yum -y install lmod-defaults-gnu7-openmpi3-ohpc
 
+#set the openMPI configuration to only use the eno1 (internal zone)
+#as the firewall is disabled on the internal zone
+vi /opt/ohpc/pub/mpi/openmpi3-gnu7/3.0.0/etc/openmpi-mca-params.conf
+btl_base_warn_component_unused = 0
+btl_tcp_if_include=eno1
 
 
