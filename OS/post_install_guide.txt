@@ -139,3 +139,11 @@ btl_base_warn_component_unused = 0
 btl_tcp_if_include=eno1
 
 
+#on all the node, create the test user and modify the password, set the login without password
+useradd -m test
+passwd test
+ssh-keygen -t rsa -b 4096
+ssh-copy-id -i ~/.ssh/id_rsa.pub test@gene-1
+ssh-copy-id -i ~/.ssh/id_rsa.pub test@gene-2
+ssh-copy-id -i ~/.ssh/id_rsa.pub test@gene-3
+ssh-copy-id -i ~/.ssh/id_rsa.pub test@gene-4
