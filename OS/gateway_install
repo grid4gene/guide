@@ -1,0 +1,89 @@
+
+Deploy Outbound NAT Gateway on CentOS 7
+by ethand on Dec 04, 2014
+  Intermediate
+
+Table of Contents
+
+    Introduction
+    Requirements
+    Deploy Infrastructure
+    Configure Gateway Primary NIC
+    Configure Gateway Secondary NIC
+    Configure Internal Server NIC
+    Enable IP Forwarding
+    Enable NAT
+
+Introduction
+
+A common network infrastructure may consist of an private network on an isolated subnet. While there may be no need for incoming connections to access the private network from the outside, there are occasions when you may need servers within the private subnet to make connections to services outside of the subnet or to the public Internet. An example may include downloading a software package, sending backup data to an external location, or applying system updates to servers on the private subnet.
+
+A Linux gateway server with two network interfaces, or NICs, can be used to bridge two networks together. One NIC will connect to an external, or public, network while the other NIC will connect to the private subnet. IP forwarding and a NAT rule are then used to route traffic from the private subnet out to the external network.
+
+The traffic from the internal servers will appear to be originating from the gateway IP address. Externally generated traffic will reach the gateway and have no visibility of the private subnet.
+
+While beyond the scope of this tutorial, the gateway server firewall can be modified to restrict outbound traffic from the subnet.
+Requirements
+
+    CentOS or Red Hat Enterprise Linux 7
+    One gateway server with two network interfaces
+        Public NIC: 203.0.113.110
+        Private NIC: 10.0.0.1
+    One or more nodes with one network interface
+        Private NIC: 10.0.0.2
+
+Deploy Infrastructure
+
+The example infrastructure will consist of a single gateway server bridging the public Internet and private subnet.
+
+The primary network interface, eth0, of the gateway will be assigned a public IP address of 203.0.113.110 with a connection to the public Internet through LAN 1. The secondary network interface, eth1, will be assigned an IP address of 10.0.0.1 with a connection to the private network over LAN 2.
+
+A second, internal server, named node1 will reside on the private network on LAN 2 with an IP address of 10.0.0.2. Further internal servers will follow a similar configuration as this server. Here is a diagram from the ProfitBricks Data Center Designer (DCD) of the example infrastructure.
+
+Configure Gateway Primary NIC
+
+By default, the ProfitBricks DCD will dynamically assign the gateway server a public IP address. This is suitable for the tutorial, however, a static public IP address can also be used.
+
+No changes should be necessary to the /etc/sysconfig/network-scripts/ifcfg-eth0 file unless a static IP address is required. The default ifcfg-eth0 file will likely be sufficient, but here are the key configuration parameters.
+
+BOOTPROTO="dhcp" DEVICE="eth0" ONBOOT="yes"
+Configure Gateway Secondary NIC
+
+The secondary network interface on the gateway server will need to be assigned a private static IP address. The /etc/sysconfig/network-scripts/ifcfg-eth1 file should be similar to the following example.
+
+BOOTPROTO="static" IPADDR="10.0.0.1" NETMASK="255.255.255.0" DEVICE="eth1" ONBOOT="yes"
+
+The network service will need to be restarted for the changes to take affect. You may lose your connection to the server during the restart.
+
+systemctl restart NetworkManager
+
+Configure Internal Server NIC
+
+The internal node1 server will need to be assigned a private static IP address and a gateway IP that matches the private IP address of the outbound gateway. Update the /etc/sysconfig/network-scripts/ifcfg-eth0 file to include the static IP address, netmask, and gateway.
+
+TYPE="Ethernet" BOOTPROTO="static" IPADDR="10.0.0.2" NETMASK="255.255.255.0" GATEWAY="10.0.0.1" DEVICE="eth0" ONBOOT="yes"
+
+The NetworkManager service on each server will need to be restarted for the network changes to take affect.
+
+systemctl restart NetworkManager
+
+Enable IP Forwarding
+
+The next step is to enable IPv4 packet forwarding from the command line.
+
+sysctl -w net.ipv4.ip_forward=1
+
+To preserve packet forwarding on reboot, the above configuration value and key must also be added to the /etc/sysctl.d/ip_forward.conf file.
+
+echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.d/ip_forward.conf
+
+Enable NAT
+
+IP masquerading must now be enabled using iptables.
+
+firewall-cmd --permanent --direct --passthrough ipv4 -t nat -I POSTROUTING -o eth0 -j MASQUERADE -s 10.0.0.0/24
+firewall-cmd --reload
+
+The internal node should now be able to access the public Internet through the gateway server. This can tested by pinging an external server from node1.
+
+ping 8.8.8.8
