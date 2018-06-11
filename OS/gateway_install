@@ -6,6 +6,115 @@ sysctl -w net.ipv6.conf.all.disable_ipv6=1
 sysctl -w net.ipv6.conf.default.disable_ipv6=1
 
 
+[root@firewall ~]# firewall-cmd --zone=external --add-interface=enp2s0 --permanent
+The interface is under control of NetworkManager, setting zone to 'external'.
+success
+[root@firewall ~]# firewall-cmd --zone=internal --add-interface=enp3s0 --permanent
+The interface is under control of NetworkManager, setting zone to 'external'.
+success
+
+firewall-cmd --zone=external --add-masquerade --permanent
+
+
+
+The scenario is a small private network connected via a switch and using 192.168.0.* addresses. One of the machines (let’s call it RTR001) on the network has two network interface cards. One with an address on the 192.168.0.* network and another providing wider network (& internet) access on a 123.111.123.* network. This machine (RTR001) will take traffic from the private network 192.168.0.* and route it out via its other interface to the internet etc.
+
+So the router machine (RTR001) has the following interfaces and IP addresses:
+
+eth0 123.111.0.1
+eth1 192.168.0.1
+Configure the kernel to forward IP packets:
+
+
+/etc/sysctl.conf
+1
+/etc/sysctl.conf
+
+# Controls IP packet forwarding
+net.ipv4.ip_forward = 1
+1
+2
+# Controls IP packet forwarding
+net.ipv4.ip_forward = 1
+To avoid rebooting implement the same change dynamically:
+
+
+sysctl -w net.ipv4.ip_forward=1
+1
+sysctl -w net.ipv4.ip_forward=1
+On CentOS 7, after configuring both network interfaces, we need to use firewalld:
+
+
+firewall-cmd --zone=external --add-interface=eth0 --permanent
+firewall-cmd --zone=internal --add-interface=eth1 --permanent
+1
+2
+firewall-cmd --zone=external --add-interface=eth0 --permanent
+firewall-cmd --zone=internal --add-interface=eth1 --permanent
+After making changes reload with:
+
+
+firewall-cmd --complete-reload
+1
+firewall-cmd --complete-reload
+Check the settings to ensure your interfaces are listed in the correct zone:
+
+
+firewall-cmd --list-all-zones
+1
+firewall-cmd --list-all-zones
+If you have made a mistake you can remove the interface from the zone with:
+
+
+firewall-cmd --zone=internal --remove-interface=eth0
+1
+firewall-cmd --zone=internal --remove-interface=eth0
+Configure masquerading on the externally facing device (eth0):
+
+
+firewall-cmd --zone=external --add-masquerade --permanent
+1
+firewall-cmd --zone=external --add-masquerade --permanent
+Now the NAT rule (see comments – this may not be required):
+
+
+firewall-cmd --permanent --direct --passthrough ipv4 -t nat -I POSTROUTING -o eth0 -j MASQUERADE -s 192.168.0.0/24
+1
+firewall-cmd --permanent --direct --passthrough ipv4 -t nat -I POSTROUTING -o eth0 -j MASQUERADE -s 192.168.0.0/24
+I was running DNS, DHCP, pxe and several other services from my RTR001 machine to service the internal computers so I opened those ports with:
+
+
+firewall-cmd --permanent --zone=internal --add-service=dhcp
+firewall-cmd --permanent --zone=internal --add-service=tftp
+firewall-cmd --permanent --zone=internal --add-service=dns
+firewall-cmd --permanent --zone=internal --add-service=http
+firewall-cmd --permanent --zone=internal --add-service=nfs
+firewall-cmd --permanent --zone=internal --add-service=ssh
+1
+2
+3
+4
+5
+6
+firewall-cmd --permanent --zone=internal --add-service=dhcp
+firewall-cmd --permanent --zone=internal --add-service=tftp
+firewall-cmd --permanent --zone=internal --add-service=dns
+firewall-cmd --permanent --zone=internal --add-service=http
+firewall-cmd --permanent --zone=internal --add-service=nfs
+firewall-cmd --permanent --zone=internal --add-service=ssh
+Reload the firewall rules and test pings from the internal machines:
+
+
+firewall-cmd --complete-reload
+firewall-cmd --list-all-zones
+1
+2
+firewall-cmd --complete-reload
+firewall-cmd --list-all-zones
+ 
+
+
+
 Deploy Outbound NAT Gateway on CentOS 7
 by ethand on Dec 04, 2014
   Intermediate
