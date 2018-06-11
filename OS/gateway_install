@@ -1,4 +1,11 @@
 
+CentOS 7 min install
+
+disable IPv6
+sysctl -w net.ipv6.conf.all.disable_ipv6=1
+sysctl -w net.ipv6.conf.default.disable_ipv6=1
+
+
 Deploy Outbound NAT Gateway on CentOS 7
 by ethand on Dec 04, 2014
   Intermediate
