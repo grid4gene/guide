@@ -38,6 +38,12 @@ vi /etc/fstab
 /dev/data/data_volume   /home                 xfs     defaults        0 0
 /dev/share/share_volume   /share                 xfs     defaults        0 0
 
+#enable sudo for test
+usermod -a -G wheel test
+#enable the sudo without password
+visudo
+%wheel  ALL=(ALL)       NOPASSWD: ALL
+
 #reload the fstab
 mount -a
 
