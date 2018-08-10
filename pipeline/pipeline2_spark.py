@@ -5,7 +5,6 @@
 # Following code is proprietary and any use without explicit permission
 # from Breakthrough Genomics Ltd. is forbidden
 
-
 import sys
 import subprocess
 import logging
@@ -18,11 +17,17 @@ reference_dir = base_folder+"reference/"
 output_folder = base_folder+"TEST/output/"
 gatk_binary = "gatk"
 bowtie2_binary = tools_dir+"bowtie2-2.3.4.1-linux-x86_64/bowtie2"
+#samtools_binary = tools_dir + "samtools"
 samtools_binary = tools_dir + "samtools-1.8/samtools"
 bowtie2_index = reference_dir+"hg19"
 reference_fasta = reference_dir+"hg19.fasta"
 dbsnp_vcf = reference_dir+"dbsnp_138.hg19.vcf"
 
+#define the number of logic cpu core in the server
+num_cores = "104"
+#spark_parmeters = ["--", "--spark-master",  "local[20]"]
+#spark_parmeters = ["--", "--spark-runner",  "LOCAL"]
+spark_parmeters = ["--", "--spark-runner",  "SPARK", "--spark-master", "spark://wolfpass-aep:7077", "--num-executors", "5", "--executor-cores", "20", "--executor-memory", "4g"]
 ### END OF PATH DEFINITIONS ######################################################################
 
 class pipeline():
@@ -30,7 +35,7 @@ class pipeline():
     self.sample_name = sample_name
     self.fastq1 = f1
     self.fastq2 = f2
-    self.threads = "104"
+    self.threads = num_cores
     self.open_files = []
     self.docker_image = "broadinstitute/gatk:4.0.6.0"
     # logger setup
@@ -43,6 +48,21 @@ class pipeline():
   def close_all_files(self):
     for f in self.open_files:
         f.close()
+
+  def run_in_local(self, cmd, stdout=None, stderr=None):
+    """ Run a command in local host"""
+    print cmd
+    if stdout is not None:
+      stdout = open(stdout,"w")
+      self.open_files.append(stdout)
+    if stderr is not None:
+      stderr = open(stderr,"w")
+      self.open_files.append(stderr)
+    errcode = subprocess.call(cmd, stdout=stdout, stderr=stderr)
+    if errcode != 0:
+      self.close_all_files()
+      raise RuntimeError("Failed: {}".format(" ".join(cmd)))
+    self.close_all_files()
   
   def run_in_docker(self, cmd, stdout=None, stderr=None):
     """ Run a command inside docker container"""
@@ -58,14 +78,14 @@ class pipeline():
       self.open_files.append(stderr)
     self.logger.info("Running: "+" ".join(dcmd))
     
+    print dcmd
     errcode = subprocess.call(dcmd, stdout=stdout, stderr=stderr)
     if errcode != 0:
       self.close_all_files()
       raise RuntimeError("Failed: {}".format(" ".join(dcmd)))
     self.close_all_files()
   
-  def run_pipeline(self):
-    
+  def run_pipeline(self):    
     # Align to reference genome (bowtie2) and sort (samtools)
     bowtie2_cmd = [bowtie2_binary]
     bowtie2_cmd += ["-x", bowtie2_index]
@@ -80,7 +100,6 @@ class pipeline():
     sort_err = output_folder+self.sample_name+".sort.err"
     
     print sort_cmd
-
     with open(sorted_bam,"w") as f_sorted_bam:
       with open(sort_err,"w") as f_sort_err:
         with open(bowtie2_err,"w") as f_bowtie2_err:
@@ -97,12 +116,14 @@ class pipeline():
     # Mark duplicates (GATK)
     markDuplicates_bam =     output_folder+self.sample_name+".MarkDuplicates.bam"
     markDuplicates_metrics = output_folder+self.sample_name+".MarkDuplicates-metrics.txt"
-    markDuplicates_cmd = [gatk_binary, "MarkDuplicates"]
+    markDuplicates_cmd = [gatk_binary, "MarkDuplicatesSpark"]
     markDuplicates_cmd += ["-I", sorted_bam]
     markDuplicates_cmd += ["-O", markDuplicates_bam]
     markDuplicates_cmd += ["-M", markDuplicates_metrics]
+    markDuplicates_cmd += spark_parmeters
     markDuplicates_log = output_folder+self.sample_name+".MarkDuplicates.log"
-    self.run_in_docker(markDuplicates_cmd, stderr=markDuplicates_log)
+    #self.run_in_docker(markDuplicates_cmd, stderr=markDuplicates_log)
+    self.run_in_local(markDuplicates_cmd, stderr=markDuplicates_log)
     
     # Add read groups (GATK)
     ReadGroups_bam =     output_folder+self.sample_name+".ReadGroups.bam"
@@ -114,32 +135,36 @@ class pipeline():
     ReadGroups_cmd += ["--RGPU", "unit1"]
     ReadGroups_cmd += ["--RGSM", self.sample_name]
     ReadGroups_log = output_folder+self.sample_name+".ReadGroups.log"
-    self.run_in_docker(ReadGroups_cmd, stderr=ReadGroups_log)
+    #self.run_in_docker(ReadGroups_cmd, stderr=ReadGroups_log)
+    self.run_in_local(ReadGroups_cmd, stderr=ReadGroups_log)
     
     # Base recalibrator (GATK)
     BaseRecalibrator_metrics = output_folder+self.sample_name+".BaseRecalibrator-metrics.txt"
-    BaseRecalibrator_cmd = [gatk_binary, "BaseRecalibrator"]
+    BaseRecalibrator_cmd = [gatk_binary, "BaseRecalibratorSpark"]
     BaseRecalibrator_cmd += ["-I", ReadGroups_bam]
     BaseRecalibrator_cmd += ["-O", BaseRecalibrator_metrics]
     BaseRecalibrator_cmd += ["-R", reference_fasta]
     BaseRecalibrator_cmd += ["--known-sites", dbsnp_vcf]
+    BaseRecalibrator_cmd += spark_parmeters
     BaseRecalibrator_log = output_folder+self.sample_name+".BaseRecalibrator.log"
     self.run_in_docker(BaseRecalibrator_cmd, stderr=BaseRecalibrator_log)
     
     # Base recalibrator - applying model (GATK)
     BaseRecalibrator_bam = output_folder+self.sample_name+".BaseRecalibrator.bam"
-    ApplyBQSR_cmd = [gatk_binary, "ApplyBQSR"]
+    ApplyBQSR_cmd = [gatk_binary, "ApplyBQSRSpark"]
     ApplyBQSR_cmd += ["-I", ReadGroups_bam]
     ApplyBQSR_cmd += ["-bqsr", BaseRecalibrator_metrics]
     ApplyBQSR_cmd += ["-O", BaseRecalibrator_bam]
+    ApplyBQSR_cmd += spark_parmeters
     ApplyBQSR_log = output_folder+self.sample_name+".ApplyBQSR.log"
     self.run_in_docker(ApplyBQSR_cmd, stderr=ApplyBQSR_log)
     
     # Haplotype caller
     vcf = output_folder+self.sample_name+".vcf.gz"
-    HaplotypeCaller_cmd = [gatk_binary, "HaplotypeCaller"]
+    HaplotypeCaller_cmd = [gatk_binary, "HaplotypeCallerSpark"]
     HaplotypeCaller_cmd += ["-I", BaseRecalibrator_bam]
     HaplotypeCaller_cmd += ["-O", vcf]
     HaplotypeCaller_cmd += ["-R", reference_fasta]
+    HaplotypeCaller_cmd += spark_parmeters
     HaplotypeCaller_log = output_folder+self.sample_name+".HaplotypeCaller.log"
     self.run_in_docker(HaplotypeCaller_cmd, stderr=HaplotypeCaller_log)
