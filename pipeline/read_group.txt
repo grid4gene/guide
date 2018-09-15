@@ -1,0 +1,78 @@
+Meaning of the read group fields required by GATK
+
+    ID = Read group identifier
+    This tag identifies which read group each read belongs to, so each read group's ID must be unique. It is referenced both in the read group definition line in the file header (starting with @RG) and in the RG:Z tag for each read record. Note that some Picard tools have the ability to modify IDs when merging SAM files in order to avoid collisions. In Illumina data, read group IDs are composed using the flowcell + lane name and number, making them a globally unique identifier across all sequencing data in the world.
+    Use for BQSR: ID is the lowest denominator that differentiates factors contributing to technical batch effects: therefore, a read group is effectively treated as a separate run of the instrument in data processing steps such as base quality score recalibration, since they are assumed to share the same error model.
+
+    PU = Platform Unit
+    The PU holds three types of information, the {FLOWCELL_BARCODE}.{LANE}.{SAMPLE_BARCODE}. The {FLOWCELL_BARCODE} refers to the unique identifier for a particular flow cell. The {LANE} indicates the lane of the flow cell and the {SAMPLE_BARCODE} is a sample/library-specific identifier. Although the PU is not required by GATK but takes precedence over ID for base recalibration if it is present. In the example shown earlier, two read group fields, ID and PU, appropriately differentiate flow cell lane, marked by .2, a factor that contributes to batch effects.
+
+    SM = Sample
+    The name of the sample sequenced in this read group. GATK tools treat all read groups with the same SM value as containing sequencing data for the same sample, and this is also the name that will be used for the sample column in the VCF file. Therefore it's critical that the SM field be specified correctly. When sequencing pools of samples, use a pool name instead of an individual sample name. Note, when we say pools, we mean samples that are not individually barcoded. In the case of multiplexing (often confused with pooling) where you know which reads come from each sample and you have simply run the samples together in one lane, you can keep the SM tag as the sample name and not the "pooled name".
+
+    PL = Platform/technology used to produce the read
+    This constitutes the only way to know what sequencing technology was used to generate the sequencing data. Valid values: ILLUMINA, SOLID, LS454, HELICOS and PACBIO.
+
+    LB = DNA preparation library identifier
+    MarkDuplicates uses the LB field to determine which read groups might contain molecular duplicates, in case the same DNA library was sequenced on multiple lanes.
+
+If your sample collection's BAM files lack required fields or do not differentiate pertinent factors within the fields, use Picard's AddOrReplaceReadGroups to add or appropriately rename the read group fields as outlined here.
+Deriving ID and PU fields from read names
+
+Here we illustrate how to derive both ID and PU fields from read names as they are formed in the data produced by the Broad Genomic Services pipelines (other sequence providers may use different naming conventions). We break down the common portion of two different read names from a sample file. The unique portion of the read names that come after flow cell lane, and separated by colons, are tile number, x-coordinate of cluster and y-coordinate of cluster.
+
+H0164ALXX140820:2:1101:10003:23460
+H0164ALXX140820:2:1101:15118:25288
+
+Breaking down the common portion of the query names:
+
+H0164____________ #portion of @RG ID and PU fields indicating Illumina flow cell
+_____ALXX140820__ #portion of @RG PU field indicating barcode or index in a multiplexed run
+_______________:2 #portion of @RG ID and PU fields indicating flow cell lane
+
+Multi-sample and multiplexed example
+
+Suppose I have a trio of samples: MOM, DAD, and KID. Each has two DNA libraries prepared, one with 400 bp inserts and another with 200 bp inserts. Each of these libraries is run on two lanes of an Illumina HiSeq, requiring 3 x 2 x 2 = 12 lanes of data. When the data come off the sequencer, I would create 12 bam files, with the following @RG fields in the header:
+
+Dad's data:
+@RG     ID:FLOWCELL1.LANE1      PL:ILLUMINA     LB:LIB-DAD-1 SM:DAD      PI:200
+@RG     ID:FLOWCELL1.LANE2      PL:ILLUMINA     LB:LIB-DAD-1 SM:DAD      PI:200
+@RG     ID:FLOWCELL1.LANE3      PL:ILLUMINA     LB:LIB-DAD-2 SM:DAD      PI:400
+@RG     ID:FLOWCELL1.LANE4      PL:ILLUMINA     LB:LIB-DAD-2 SM:DAD      PI:400
+
+Mom's data:
+@RG     ID:FLOWCELL1.LANE5      PL:ILLUMINA     LB:LIB-MOM-1 SM:MOM      PI:200
+@RG     ID:FLOWCELL1.LANE6      PL:ILLUMINA     LB:LIB-MOM-1 SM:MOM      PI:200
+@RG     ID:FLOWCELL1.LANE7      PL:ILLUMINA     LB:LIB-MOM-2 SM:MOM      PI:400
+@RG     ID:FLOWCELL1.LANE8      PL:ILLUMINA     LB:LIB-MOM-2 SM:MOM      PI:400
+
+Kid's data:
+@RG     ID:FLOWCELL2.LANE1      PL:ILLUMINA     LB:LIB-KID-1 SM:KID      PI:200
+@RG     ID:FLOWCELL2.LANE2      PL:ILLUMINA     LB:LIB-KID-1 SM:KID      PI:200
+@RG     ID:FLOWCELL2.LANE3      PL:ILLUMINA     LB:LIB-KID-2 SM:KID      PI:400
+@RG     ID:FLOWCELL2.LANE4      PL:ILLUMINA     LB:LIB-KID-2 SM:KID      PI:400
+
+Note the hierarchical relationship between read groups (unique for each lane) to libraries (sequenced on two lanes) and samples (across four lanes, two lanes for each library).
+
+
+
+Read Group的字符串信息，这是一个非常重要的信息，以@RG开头，它是用来将比对的read进行分组的。不同的组之间测序过程被认为是相互独立的，这个信息对于我们后续对比对数据进行错误率分析和Mark duplicate时非常重要。在Read Group中，有如下几个信息非常重要：
+
+1) ID，这是Read Group的分组ID，一般设置为测序的lane ID（不同lane之间的测序过程认为是独立的），下机数据中我们都能看到这个信息的，一般都是包含在fastq的文件名中；
+
+2) PL，指的是所用的测序平台，这个信息不要随便写！特别是当我们需要使用GATK进行后续分析的时候，更是如此！这是一个很多新手都容易忽视的一个地方，在GATK中，PL只允许被设置为：ILLUMINA,SLX,SOLEXA,SOLID,454,LS454,COMPLETE,PACBIO,IONTORRENT,CAPILLARY,HELICOS或UNKNOWN这几个信息。基本上就是目前市场上存在着的测序平台，当然，如果实在不知道，那么必须设置为UNKNOWN，名字方面不区分大小写。如果你在分析的时候这里没设置正确，那么在后续使用GATK过程中可能会碰到类似如下的错误：
+
+ERROR MESSAGE: The platform (xx) associated with read group GATKSAMReadGroupRecord @RG:xx is not a recognized platform.
+这个时候你需要对比对文件的header信息进行重写，就会稍微比较麻烦。
+
+我们上面的例子用的是PL:illumina。如果你的数据是CG测序的那么记得不要写成CG！而要写COMPLETE。
+
+3) SM，样本ID，同样非常重要，有时候我们测序的数据比较多的时候，那么可能会分成多个不同的lane分布测出来，这个时候SM名字就是可以用于区分这些样本；
+
+4) LB，测序文库的名字，这个重要性稍微低一些，主要也是为了协助区分不同的group而存在。文库名字一般可以在下机的fq文件名中找到，如果上面的lane ID足够用于区分的话，也可以不用设置LB；
+
+除了以上这四个之外，还可以自定义添加其他的信息，不过如无特殊的需要，对于序列比对而言，这4个就足够了。这些信息设置好之后，在RG字符串中要用制表符（\t）将它们分开。
+
+最后在我们的例子中，我们将比对的输出结果直接重定向到一份sample_name.sam文件中，这类文件是BWA比对的标准输出文件，它的具体格式我会在下一篇文章中进行详细说明。但SAM文件是文本文件，一般整个文件都非常巨大，因此，为了有效节省磁盘空间，一般都会用samtools将它转化为BAM文件（SAM的特殊二进制格式），而且BAM会更加方便于后续的分析。所以我们上面比对的命令可以和samtools结合并改进为：
+
+$ bwa mem -t 4 -R '@RG\tID:foo_lane\tPL:illumina\tLB:library\tSM:sample_name' /path/to/human
