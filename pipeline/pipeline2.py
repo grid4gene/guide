@@ -44,6 +44,21 @@ class pipeline():
     for f in self.open_files:
         f.close()
   
+  def run_in_local(self, cmd, stdout=None, stderr=None):
+    """ Run a command in local host"""
+    print cmd
+    if stdout is not None:
+      stdout = open(stdout,"w")
+      self.open_files.append(stdout)
+    if stderr is not None:
+      stderr = open(stderr,"w")
+      self.open_files.append(stderr)
+    errcode = subprocess.call(cmd, stdout=stdout, stderr=stderr)
+    if errcode != 0:
+      self.close_all_files()
+      raise RuntimeError("Failed: {}".format(" ".join(cmd)))
+    self.close_all_files()
+
   def run_in_docker(self, cmd, stdout=None, stderr=None):
     """ Run a command inside docker container"""
     dcmd = ["sudo", "docker", "run",
@@ -75,7 +90,7 @@ class pipeline():
     bowtie2_err = output_folder+self.sample_name+".bowtie2.err"
     
     sort_cmd = [samtools_binary, "sort"]
-    sort_cmd += ["-@", "2"]
+    sort_cmd += ["-@", "104"]
     sorted_bam = output_folder+self.sample_name+".bowtie2.bam"
     sort_err = output_folder+self.sample_name+".sort.err"
     
@@ -102,7 +117,7 @@ class pipeline():
     markDuplicates_cmd += ["-O", markDuplicates_bam]
     markDuplicates_cmd += ["-M", markDuplicates_metrics]
     markDuplicates_log = output_folder+self.sample_name+".MarkDuplicates.log"
-    self.run_in_docker(markDuplicates_cmd, stderr=markDuplicates_log)
+    self.run_in_local(markDuplicates_cmd, stderr=markDuplicates_log)
     
     # Add read groups (GATK)
     ReadGroups_bam =     output_folder+self.sample_name+".ReadGroups.bam"
@@ -114,7 +129,7 @@ class pipeline():
     ReadGroups_cmd += ["--RGPU", "unit1"]
     ReadGroups_cmd += ["--RGSM", self.sample_name]
     ReadGroups_log = output_folder+self.sample_name+".ReadGroups.log"
-    self.run_in_docker(ReadGroups_cmd, stderr=ReadGroups_log)
+    self.run_in_local(ReadGroups_cmd, stderr=ReadGroups_log)
     
     # Base recalibrator (GATK)
     BaseRecalibrator_metrics = output_folder+self.sample_name+".BaseRecalibrator-metrics.txt"
@@ -124,7 +139,7 @@ class pipeline():
     BaseRecalibrator_cmd += ["-R", reference_fasta]
     BaseRecalibrator_cmd += ["--known-sites", dbsnp_vcf]
     BaseRecalibrator_log = output_folder+self.sample_name+".BaseRecalibrator.log"
-    self.run_in_docker(BaseRecalibrator_cmd, stderr=BaseRecalibrator_log)
+    self.run_in_local(BaseRecalibrator_cmd, stderr=BaseRecalibrator_log)
     
     # Base recalibrator - applying model (GATK)
     BaseRecalibrator_bam = output_folder+self.sample_name+".BaseRecalibrator.bam"
@@ -133,7 +148,7 @@ class pipeline():
     ApplyBQSR_cmd += ["-bqsr", BaseRecalibrator_metrics]
     ApplyBQSR_cmd += ["-O", BaseRecalibrator_bam]
     ApplyBQSR_log = output_folder+self.sample_name+".ApplyBQSR.log"
-    self.run_in_docker(ApplyBQSR_cmd, stderr=ApplyBQSR_log)
+    self.run_in_local(ApplyBQSR_cmd, stderr=ApplyBQSR_log)
     
     # Haplotype caller
     vcf = output_folder+self.sample_name+".vcf.gz"
@@ -142,4 +157,4 @@ class pipeline():
     HaplotypeCaller_cmd += ["-O", vcf]
     HaplotypeCaller_cmd += ["-R", reference_fasta]
     HaplotypeCaller_log = output_folder+self.sample_name+".HaplotypeCaller.log"
-    self.run_in_docker(HaplotypeCaller_cmd, stderr=HaplotypeCaller_log)
+    self.run_in_local(HaplotypeCaller_cmd, stderr=HaplotypeCaller_log)
