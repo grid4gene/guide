@@ -33,6 +33,14 @@ class pipeline():
     self.threads = "104"
     self.open_files = []
     self.docker_image = "broadinstitute/gatk:4.0.6.0"
+
+    #define the read group parameter
+    self.rg_id = "lib1"
+    self.rg_pu = "PU:unit1"
+    self.rg_pl = "PL:Illumina"
+    self.rg_sm = "SM:" + self.sample_name
+    self.rg_lb = "LB:" + "lib1"
+
     # logger setup
     LOG_FORMAT = "%(levelname)s\t%(asctime)s\t%(module)s\t%(funcName)s\t%(message)s"
     logging.basicConfig(filename = None,
@@ -43,7 +51,7 @@ class pipeline():
   def close_all_files(self):
     for f in self.open_files:
         f.close()
-  
+
   def run_in_local(self, cmd, stdout=None, stderr=None):
     """ Run a command in local host"""
     print cmd
@@ -87,6 +95,12 @@ class pipeline():
     bowtie2_cmd += ["-1", self.fastq1]
     bowtie2_cmd += ["-2", self.fastq2]
     bowtie2_cmd += ["-p", self.threads]
+    bowtie2_cmd += ["--rg-id", self.rg_id]
+    bowtie2_cmd += ["--rg", self.rg_pu]
+    bowtie2_cmd += ["--rg", self.rg_pl]
+    bowtie2_cmd += ["--rg", self.rg_sm]
+    bowtie2_cmd += ["--rg", self.rg_lb]
+
     bowtie2_err = output_folder+self.sample_name+".bowtie2.err"
     
     sort_cmd = [samtools_binary, "sort"]
@@ -109,6 +123,7 @@ class pipeline():
                                           stderr=f_sort_err)
           sort_process.communicate()
 
+
     # Mark duplicates (GATK)
     markDuplicates_bam =     output_folder+self.sample_name+".MarkDuplicates.bam"
     markDuplicates_metrics = output_folder+self.sample_name+".MarkDuplicates-metrics.txt"
@@ -118,6 +133,7 @@ class pipeline():
     markDuplicates_cmd += ["-M", markDuplicates_metrics]
     markDuplicates_log = output_folder+self.sample_name+".MarkDuplicates.log"
     self.run_in_local(markDuplicates_cmd, stderr=markDuplicates_log)
+    
     
     # Add read groups (GATK)
     ReadGroups_bam =     output_folder+self.sample_name+".ReadGroups.bam"

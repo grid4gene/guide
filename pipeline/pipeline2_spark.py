@@ -45,7 +45,7 @@ class pipeline():
     self.docker_image = "broadinstitute/gatk:4.0.6.0"
 
     #define the read group parameter
-    self.rg_id = "1"
+    self.rg_id = "lib1"
     self.rg_pu = "PU:unit1"
     self.rg_pl = "PL:Illumina"
     self.rg_sm = "SM:" + self.sample_name
@@ -121,7 +121,7 @@ class pipeline():
     sort_err = output_folder+self.sample_name+".sort.err"
     
     print sort_cmd
-
+    
     with open(sorted_bam,"w") as f_sorted_bam:
       with open(sort_err,"w") as f_sort_err:
         with open(bowtie2_err,"w") as f_bowtie2_err:
@@ -134,7 +134,7 @@ class pipeline():
                                           stdout=f_sorted_bam,
                                           stderr=f_sort_err)
           sort_process.communicate()
-
+        
     #move the data to hdfs
     cp_to_hdfs_cmd = ["hdfs", "dfs"]
     cp_to_hdfs_cmd += ["-put", sorted_bam, sorted_bam_hdfs]
@@ -154,6 +154,7 @@ class pipeline():
     markDuplicates_log = output_folder+self.sample_name+".MarkDuplicates.log"
     self.run_in_local(markDuplicates_cmd, stderr=markDuplicates_log)
     
+
     """
     Don't need the add read group as we add it in the bowtie2
 
