@@ -45,5 +45,9 @@
     <value>84</value>
   </property>
 
+  <property>
+    <name>yarn.nodemanager.local-dirs</name>
+    <value>/home/opt/volume/hadoop/data/nm-local-dir</value>
+  </property>
 
 </configuration>
