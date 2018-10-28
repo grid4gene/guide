@@ -1,0 +1,7 @@
+spectre patch have performance impact on IO workload
+disable it can get 30% performance improvement on WGS
+The following is how to disable it
+
+[root@wolfpass-aep ~]# cat /proc/cmdline
+BOOT_IMAGE=/vmlinuz-3.10.0-862.9.1.el7.x86_64 root=/dev/mapper/rhel-root ro crashkernel=auto rd.lvm.lv=rhel/root rd.lvm.lv=rhel/swap rhgb quiet spectre_v2=off nopti
+
