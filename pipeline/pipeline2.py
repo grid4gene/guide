@@ -53,14 +53,14 @@ class pipeline():
         f.close()
 
   def run_in_local(self, cmd, stdout=None, stderr=None):
-    """ Run a command in local host"""
-    print cmd
+    """ Run a command in local host"""    
     if stdout is not None:
       stdout = open(stdout,"w")
       self.open_files.append(stdout)
     if stderr is not None:
       stderr = open(stderr,"w")
-      self.open_files.append(stderr)
+      self.open_files.append(stderr)      
+    self.logger.info("Running: "+" ".join(cmd))
     errcode = subprocess.call(cmd, stdout=stdout, stderr=stderr)
     if errcode != 0:
       self.close_all_files()
@@ -95,12 +95,13 @@ class pipeline():
     bowtie2_cmd += ["-1", self.fastq1]
     bowtie2_cmd += ["-2", self.fastq2]
     bowtie2_cmd += ["-p", self.threads]
+    """
     bowtie2_cmd += ["--rg-id", self.rg_id]
     bowtie2_cmd += ["--rg", self.rg_pu]
     bowtie2_cmd += ["--rg", self.rg_pl]
     bowtie2_cmd += ["--rg", self.rg_sm]
     bowtie2_cmd += ["--rg", self.rg_lb]
-
+    """
     bowtie2_err = output_folder+self.sample_name+".bowtie2.err"
     
     sort_cmd = [samtools_binary, "sort"]
@@ -108,8 +109,7 @@ class pipeline():
     sorted_bam = output_folder+self.sample_name+".bowtie2.bam"
     sort_err = output_folder+self.sample_name+".sort.err"
     
-    print sort_cmd
-
+    print sort_cmd    
     with open(sorted_bam,"w") as f_sorted_bam:
       with open(sort_err,"w") as f_sort_err:
         with open(bowtie2_err,"w") as f_bowtie2_err:
@@ -122,8 +122,7 @@ class pipeline():
                                           stdout=f_sorted_bam,
                                           stderr=f_sort_err)
           sort_process.communicate()
-
-
+    
     # Mark duplicates (GATK)
     markDuplicates_bam =     output_folder+self.sample_name+".MarkDuplicates.bam"
     markDuplicates_metrics = output_folder+self.sample_name+".MarkDuplicates-metrics.txt"

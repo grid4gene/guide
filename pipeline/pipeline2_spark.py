@@ -12,7 +12,7 @@ import logging
 ### PATH DEFINITIONS #############################################################################
 hdfs_url = "hdfs://wolfpass-aep:9000/user/test/"
 
-base_folder = "/home/test/WGS_pipeline/"
+base_folder = "/home/opt/volume/WGS_pipeline/"
 tools_dir = base_folder+"TOOLS/"
 reference_dir = base_folder+"reference/"
 output_folder = base_folder+"TEST/output/"
@@ -64,13 +64,13 @@ class pipeline():
 
   def run_in_local(self, cmd, stdout=None, stderr=None):
     """ Run a command in local host"""
-    print cmd
     if stdout is not None:
       stdout = open(stdout,"w")
       self.open_files.append(stdout)
     if stderr is not None:
       stderr = open(stderr,"w")
       self.open_files.append(stderr)
+    self.logger.info("Running: "+" ".join(cmd))    
     errcode = subprocess.call(cmd, stdout=stdout, stderr=stderr)
     if errcode != 0:
       self.close_all_files()
@@ -134,12 +134,13 @@ class pipeline():
                                           stdout=f_sorted_bam,
                                           stderr=f_sort_err)
           sort_process.communicate()
-        
+
     #move the data to hdfs
     cp_to_hdfs_cmd = ["hdfs", "dfs"]
     cp_to_hdfs_cmd += ["-put", sorted_bam, sorted_bam_hdfs]
     print cp_to_hdfs_cmd
     subprocess.check_output(cp_to_hdfs_cmd)
+    
 
     # Mark duplicates (GATK)
     #markDuplicates_bam =     output_folder+self.sample_name+".MarkDuplicates.bam"
@@ -204,7 +205,7 @@ class pipeline():
     BQSRPipeline_cmd = [gatk_binary, "BQSRPipelineSpark"]
     BQSRPipeline_cmd += ["-I", markDuplicates_bam_hdfs]
     BQSRPipeline_cmd += ["-O", BaseRecalibrator_bam_hdfs]
-    BQSRPipeline_cmd += ["-R", reference_fasta_2bit]
+    BQSRPipeline_cmd += ["-R", reference_fasta]
     BQSRPipeline_cmd += ["--known-sites", dbsnp_vcf_hdfs]
     BQSRPipeline_cmd += spark_parmeters
     BQSRPipeline_log = output_folder+self.sample_name+".BQSRPipeline.log"
@@ -217,7 +218,7 @@ class pipeline():
     HaplotypeCaller_cmd = [gatk_binary, "HaplotypeCallerSpark"]
     HaplotypeCaller_cmd += ["-I", BaseRecalibrator_bam_hdfs]
     HaplotypeCaller_cmd += ["-O", vcf_hdfs]
-    HaplotypeCaller_cmd += ["-R", reference_fasta_2bit]
+    HaplotypeCaller_cmd += ["-R", reference_fasta]
     HaplotypeCaller_cmd += spark_parmeters
     HaplotypeCaller_log = output_folder+self.sample_name+".HaplotypeCaller.log"
     self.run_in_local(HaplotypeCaller_cmd, stderr=HaplotypeCaller_log)
