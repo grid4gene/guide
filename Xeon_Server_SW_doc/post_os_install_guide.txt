@@ -1,0 +1,43 @@
+#set the OS start the multi-user mode
+systemctl set-default multi-user.target
+
+#disable SELinux
+SELINUX=disabled
+
+#Fix ssh login slow issue
+vi /etc/ssh/sshd_config
+# add this line
+UseDNS no
+
+#set hostname and set hosts file
+hostnamectl set-hostname gene-1
+
+vi /etc/hosts
+192.168.1.201 gene-1
+
+#create lvm on two 8T disks
+yum install system-storage-manager
+ssm create --fs xfs -p data -n data_volume /dev/sdb
+ssm create --fs xfs -p share -n share_volume /dev/sdc
+
+mkdir /share
+chmod 777 /share
+
+vi /etc/fstab
+/dev/data/data_volume   /home                 xfs     defaults        0 0
+/dev/share/share_volume   /share                 xfs     defaults        0 0
+
+#enable sudo for test
+usermod -a -G wheel test
+#enable the sudo without password
+visudo
+%wheel  ALL=(ALL)       NOPASSWD: ALL
+
+#reload the fstab
+mount -a
+
+enable the VNCserver port on the firewall
+firewall-cmd --add-port=5901/tcp
+firewall-cmd --reload
+
+
