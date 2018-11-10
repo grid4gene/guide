@@ -1,0 +1,8 @@
+Intel Server System R2308WFTZS  $1,861.60 
+CPU  2 * Xeon SP 6138           $2612 * 2       
+
+Memory 12 * 16G = 192GB 
+1 * 1T NVMe SDD  P4600 1T          
+7 * 8T HDD
+
+Intel Server System R2308WFTZS is an Integrated 2U system featuring an Intel Server Board S2600WFT supporting eight 3.5 inch hot-swap drives, dual 10-GbE LAN, 24 DIMMs, one 1300W redundant-capable power.
