@@ -1,3 +1,5 @@
+# Install the CentOS 7.5 x86_64
+
 #set the OS start the multi-user mode
 systemctl set-default multi-user.target
 
@@ -10,22 +12,19 @@ vi /etc/ssh/sshd_config
 UseDNS no
 
 #set hostname and set hosts file
-hostnamectl set-hostname gene-1
+# Here we use the name wolfpass-aep as an example. You can use another other name.
+hostnamectl set-hostname wolfpass-aep
 
 vi /etc/hosts
-192.168.1.201 gene-1
+192.168.1.201 wolfpass-aep
 
 #create lvm on two 8T disks
 yum install system-storage-manager
 ssm create --fs xfs -p data -n data_volume /dev/sdb
 ssm create --fs xfs -p share -n share_volume /dev/sdc
 
-mkdir /share
-chmod 777 /share
-
-vi /etc/fstab
-/dev/data/data_volume   /home                 xfs     defaults        0 0
-/dev/share/share_volume   /share                 xfs     defaults        0 0
+#Mount the NVMe SSD to the /home/opt/volume
+mount /dev/nvme1p1 /home/opt/volume
 
 #enable sudo for test
 usermod -a -G wheel test
@@ -33,11 +32,71 @@ usermod -a -G wheel test
 visudo
 %wheel  ALL=(ALL)       NOPASSWD: ALL
 
-#reload the fstab
-mount -a
-
 enable the VNCserver port on the firewall
 firewall-cmd --add-port=5901/tcp
 firewall-cmd --reload
+
+#instal the Oracle JDK
+# download and install java 1.8 JDK from
+https://www.oracle.com/technetwork/java/javase/downloads/index-jsp-138363.html#javasejdk
+
+#Install the hadoop hdfs and SPARK
+#download the hadoop 2.8.4
+cd /home/opt/
+wget https://www.apache.org/dyn/closer.cgi/hadoop/common/hadoop-2.8.5/hadoop-2.8.4.tar.gz
+tar zxvf hadoop-2.8.4.tar.gz
+
+# Setting up a Single Node Cluster for hadoop and SPARK
+# Hadoop can also be run on a single-node in a pseudo-distributed mode where each Hadoop daemon runs in a separate Java process.
+# https://hadoop.apache.org/docs/r2.8.5/hadoop-project-dist/hadoop-common/SingleCluster.html
+
+# Set the enviorment various
+https://github.com/grid4gene/guide/blob/master/Xeon_Server_SW_doc/spark_hadoop_config/bash_profile
+
+#update the hadoop configuration file etc/hadoop/core-site.xml
+https://github.com/grid4gene/guide/blob/master/Xeon_Server_SW_doc/spark_hadoop_config/core-site.xml
+#update the hadoop configuration file etc/hadoop/hdfs-site.xml
+https://github.com/grid4gene/guide/blob/master/Xeon_Server_SW_doc/spark_hadoop_config/hdfs-site.xml
+
+#Setup passphraseless ssh
+$ ssh-keygen -t rsa -P '' -f ~/.ssh/id_rsa
+$ cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+$ chmod 0600 ~/.ssh/authorized_keys
+ssh localhost
+
+#Format the filesystem:
+$ bin/hdfs namenode -format
+#Start NameNode daemon and DataNode daemon:
+$ sbin/start-dfs.sh
+#Browse the web interface for the NameNode; by default it is available at
+NameNode - http://localhost:50070/
+#Make the HDFS directories required to execute MapReduce jobs
+$ bin/hdfs dfs -mkdir /user
+$ bin/hdfs dfs -mkdir /user/<username>
+#Copy the referebce files into the distributed filesystem:
+$ bin/hdfs dfs -put etc/hadoop input
+
+# You can run a MapReduce job on YARN in a pseudo-distributed mode 
+# by setting a few parameters and running ResourceManager daemon and NodeManager daemon in addition.
+# Configure parameters as follows:etc/hadoop/mapred-site.xml
+https://github.com/grid4gene/guide/blob/master/Xeon_Server_SW_doc/spark_hadoop_config/mapred-site.xml
+# etc/hadoop/yarn-site.xml
+https://github.com/grid4gene/guide/blob/master/Xeon_Server_SW_doc/spark_hadoop_config/yarn-site.xml
+#Start ResourceManager daemon and NodeManager daemon:
+$ sbin/start-yarn.sh
+# Browse the web interface for the ResourceManager; by default it is available at
+ResourceManager - http://localhost:8088/
+
+#install the SPARK
+#download the SPARK 2.3.2
+cd /home/opt
+wget https://www.apache.org/dyn/closer.lua/spark/spark-2.3.2/spark-2.3.2-bin-hadoop2.7.tgz
+tar xvf spark-2.3.2-bin-hadoop2.7.tgz
+#verify SPARK with hadoop
+http://spark.apache.org/docs/2.3.2/running-on-yarn.html
+
+#then you can run the pipeline in 
+https://github.com/grid4gene/guide/tree/master/pipeline
+
 
 
