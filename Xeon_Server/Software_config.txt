@@ -1,0 +1,2 @@
+Operation system
+CentOS 7.5 x86_64
