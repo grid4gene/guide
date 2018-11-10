@@ -1,1 +1,1 @@
-Documents for the Server hardware and management configuration
+Here is the server hardware configuration for Intel Xeon Phi.
