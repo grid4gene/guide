@@ -1,0 +1,47 @@
+
+input files
+[root@e3-1585 FASTQ_LAURA]# ls -lah
+-rw-rw-r--. 1 test test 2.8G Nov 28 22:37 412_1.fastq.gz
+-rw-r--r--. 1 test test  50M Nov 28 22:33 412_1.head.fastq.gz
+-rw-rw-r--. 1 test test 2.9G Nov 28 22:33 412_2.fastq.gz
+-rw-r--r--. 1 test test  52M Nov 28 22:33 412_2.head.fastq.gz
+
+reference files
+[root@e3-1585 reference]# ls -lah
+-rw-r--r--. 1 test test 916M Nov 28 22:18 hg19.1.bt2
+-rw-rw-r--. 1 test test 740M Nov 28 22:31 hg19.2bit
+-rw-r--r--. 1 test test 684M Nov 28 22:18 hg19.2.bt2
+-rw-r--r--. 1 test test 3.8K Nov 28 22:18 hg19.3.bt2
+-rw-r--r--. 1 test test 684M Nov 28 22:19 hg19.4.bt2
+-rw-r--r--. 1 test test  11K Nov 28 22:22 hg19.dict
+-rw-rw-r--. 1 test test 3.0G Nov 28 22:20 hg19.fasta
+-rw-rw-r--. 1 test test 6.6K Nov 28 22:31 hg19.fasta.amb
+-rw-rw-r--. 1 test test 3.6K Nov 28 22:31 hg19.fasta.ann
+-rw-rw-r--. 1 test test 2.9G Nov 28 22:32 hg19.fasta.bwt
+-rw-rw-r--. 1 test test 3.2K Nov 28 22:20 hg19.fasta.fai
+-rw-rw-r--. 1 test test 740M Nov 28 22:31 hg19.fasta.pac
+-rw-rw-r--. 1 test test 1.5G Nov 28 22:32 hg19.fasta.sa
+-rw-r--r--. 1 test test 916M Nov 28 22:19 hg19.rev.1.bt2
+-rw-r--r--. 1 test test 684M Nov 28 22:19 hg19.rev.2.bt2
+-rw-rw-r--. 1 test test 3.5G Nov 28 22:18 hg19.zip
+
+output files
+[root@e3-1585 output]# ls -lah orig_412.*
+-rw-rw-r--. 1 test test  15K Nov 29 16:10 orig_412.ApplyBQSR.log
+-rw-rw-r--. 1 test test 6.2M Nov 29 16:10 orig_412.BaseRecalibrator.bai
+-rw-rw-r--. 1 test test 9.9G Nov 29 16:10 orig_412.BaseRecalibrator.bam
+-rw-rw-r--. 1 test test  21K Nov 29 15:52 orig_412.BaseRecalibrator.log
+-rw-rw-r--. 1 test test 155K Nov 29 15:52 orig_412.BaseRecalibrator-metrics.txt
+-rw-rw-r--. 1 test test    0 Nov 28 22:37 orig_412.bowtie2.bam
+-rw-rw-r--. 1 test test  633 Nov 28 22:37 orig_412.bowtie2.err
+-rw-rw-r--. 1 test test 4.4G Nov 29 15:14 orig_412.bwa.bam
+-rw-rw-r--. 1 test test 107K Nov 29 15:11 orig_412.bwa.err
+-rw-rw-r--. 1 test test  75K Nov 29 17:56 orig_412.HaplotypeCaller.log
+-rw-rw-r--. 1 test test 6.2G Nov 29 15:25 orig_412.MarkDuplicates.bam
+-rw-rw-r--. 1 test test  34K Nov 29 15:25 orig_412.MarkDuplicates.log
+-rw-rw-r--. 1 test test 3.0K Nov 29 15:25 orig_412.MarkDuplicates-metrics.txt
+-rw-rw-r--. 1 test test 6.3G Nov 29 15:29 orig_412.ReadGroups.bam
+-rw-rw-r--. 1 test test  22K Nov 29 15:29 orig_412.ReadGroups.log
+-rw-rw-r--. 1 test test   64 Nov 29 15:11 orig_412.sort.err
+-rw-rw-r--. 1 test test  15M Nov 29 17:56 orig_412.vcf.gz
+-rw-rw-r--. 1 test test 1.6M Nov 29 17:56 orig_412.vcf.gz.tbi
