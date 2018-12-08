@@ -1,0 +1,30 @@
+my $bwa = " ${dir_bin}/bwa mem  -t $threads  $hg19  $R1 $R2 |${dir_bin}/samtools view -Sb - > $dir_analyzed_sample/$sp_name-bwa.bam \n";
+# filter reads un-mapped reads and sort bam file
+my $aligned = " ${dir_bin}/samtools view -h  -F 4 $dir_analyzed_sample/$sp_name-bwa.bam | samtools view -Sb -  >$dir_analyzed_sample/$sp_name-ali.bam \n";
+# Sorting BAM
+my $ali_sort = "${dir_bin}/samtools sort $dir_analyzed_sample/$sp_name-ali.bam  -o $dir_analyzed_sample/$sp_name-ali-sorted.bam \n";
+# Add ReadGroup
+my $RG = " java -jar ${dir_bin}/picard.jar AddOrReplaceReadGroups  I=$dir_analyzed_sample/$sp_name-ali-sorted.bam  O=$dir_analyzed_sample/$sp_name-ali-sorted-RG.bam  RGSM=$sp_name RGLB=project RGPL=illumina RGID=none RGPU=none VALIDATION_STRINGENCY=LENIENT \n";
+# Remove duplicates
+my $rmdup = " java -jar ${dir_bin}/picard.jar MarkDuplicates  REMOVE_DUPLICATES=TRUE CREATE_INDEX=TRUE VALIDATION_STRINGENCY=LENIENT MAX_RECORDS_IN_RAM=4000000 ASSUME_SORTED=TRUE I=$dir_analyzed_sample/$sp_name-ali-sorted-RG.bam  O=$dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup.bam  METRICS_FILE=$dir_analyzed_sample/$sp_name-pacard.metrics \n";
+# index BAM
+my $bam_index = "samtools index $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup.bam \n";
+# RealignerTargetCreator
+my $target_ct = "java -jar $dir_bin/GenomeAnalysisTK.jar -nt $threads -T RealignerTargetCreator -known $dir_vcf/Mills_and_1000G_gold_standard.indels.hg19.sites.vcf  -known $dir_vcf/1000G_phase1.indels.hg19.sites.vcf  -R $hg19 -I $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup.bam -o $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup.bam.list \n";
+# IndelRealigner
+my $indel_ra = " java -jar $dir_bin/GenomeAnalysisTK.jar  -T IndelRealigner -known $dir_vcf/Mills_and_1000G_gold_standard.indels.hg19.sites.vcf -known $dir_vcf/1000G_phase1.indels.hg19.sites.vcf -R $hg19 -I $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup.bam -targetIntervals $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup.bam.list -o $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned.bam \n";
+#BaseRecalibrator
+my $recal = "java -jar $dir_bin/GenomeAnalysisTK.jar  -nct $threads -T BaseRecalibrator -l INFO  -R $hg19   -knownSites $dir_vcf/Mills_and_1000G_gold_standard.indels.hg19.sites.vcf -knownSites $dir_vcf/1000G_phase1.indels.hg19.sites.vcf  -I  $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned.bam -o  $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned.grp \n";
+# GATK PrintReads
+my $print_read = " java -jar $dir_bin/GenomeAnalysisTK.jar -nct $threads -T PrintReads -R $hg19 -I $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned.bam -BQSR $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned.grp -o $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal-0.bam \n";
+
+# Filter mapping quality <10
+my $filter_mq = " ${dir_bin}/samtools view -h  -q 10 $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal-0.bam |samtools view -h -Sb ->$dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal.bam  \n";
+# index BAM
+my $bam_ind = "samtools index $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal.bam \n";
+
+
+# GATK UnifiedGenotyper
+my $gatk_un = "java -jar $dir_bin/GenomeAnalysisTK.jar -nt $threads -T UnifiedGenotyper -R $hg19  -L $bed  -metrics $dir_analyzed_sample/$sp_name-snps.metrics -stand_call_conf 10.0 -stand_emit_conf 5.0 -dcov 20000 -glm BOTH -I $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal.bam -o $dir_analyzed_sample/$sp_name-Unified-SNP-INDLE.vcf \n";
+#GARK HaplotypeCaller
+my $gatk_hap = "java -jar $dir_bin/GenomeAnalysisTK.jar -nct  $threads -T HaplotypeCaller -R $hg19 -L $bed  -stand_call_conf 10.0 -stand_emit_conf 5.0  -minPruning 3  -mbq 5  -I $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal.bam -o $dir_analyzed_sample/$sp_name-Haploy-SNP-INDLE.vcf \n ";
