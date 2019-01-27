@@ -15,7 +15,7 @@ dir_analyzed_sample='TEST/output'
 dir_bin='/home/opt/tools'
 bed='reference/Agilent_S06588914_Covered.chr.bed'
 
-time ${dir_bin}/bwa mem  -t $threads  $hg19  $R1 $R2 | ${dir_bin}/samtools view -S -b > $dir_analyzed_sample/$sp_name-bwa.bam
+time ${dir_bin}/bwa mem  -t $threads  $hg19  $R1 $R2 | ${dir_bin}/samtools view -Sb > $dir_analyzed_sample/$sp_name-bwa.bam
 
 # filter reads un-mapped reads and sort bam file
 time ${dir_bin}/samtools view -h  -F 4 $dir_analyzed_sample/$sp_name-bwa.bam | ${dir_bin}/samtools view -Sb > $dir_analyzed_sample/$sp_name-ali.bam

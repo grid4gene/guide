@@ -113,17 +113,17 @@ time parallel -j $num_parallel "java -jar $dir_bin/GenomeAnalysisTK.jar  -T Inde
 time parallel -j $num_parallel "java -jar $dir_bin/GenomeAnalysisTK.jar  -nct $threads -T BaseRecalibrator -l INFO  -R $hg19   -knownSites $dir_vcf/Mills_and_1000G_gold_standard.indels.hg19.sites.vcf -knownSites $dir_vcf/1000G_phase1.indels.hg19.sites.vcf  -I  $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned.{}.bam -o  $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned.{}.grp" :::$chr
 
 # GATK PrintReads
-time parallel -j $num_parallel "java -jar $dir_bin/GenomeAnalysisTK.jar -nct $threads -T PrintReads -R $hg19 -I $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned.{}.bam -BQSR $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned.{}.grp -o $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal-0.{}.bam" :::$chr
+time parallel -j $num_parallel "java -jar $dir_bin/GenomeAnalysisTK.jar -nct $threads -T PrintReads -R $hg19 -I $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned.{}.bam -BQSR $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned.{}.grp -o $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal-0.{}.bam" ::: $chr
 
 # Filter mapping quality <10
-time parallel -j $num_parallel "${dir_bin}/samtools view -@ $threads -h -q 10 $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal-0.{}.bam |${dir_bin}/samtools view  -@ $threads -h -Sb > $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal.{}.bam" :::$chr
+time parallel -j $num_parallel "${dir_bin}/samtools view -@ $threads -h -q 10 $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal-0.{}.bam |${dir_bin}/samtools view  -@ $threads -h -Sb > $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal.{}.bam" ::: $chr
 
 # index BAM
 time parallel -j $cores  ${dir_bin}/samtools index $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal.{}.bam :::$chr
 
 # GATK UnifiedGenotyper
-#time bash -c "numactl -C 1-17 -m 0 java -jar $dir_bin/GenomeAnalysisTK.jar -nt 8 -T UnifiedGenotyper -R $hg19  -L $bed  -metrics $dir_analyzed_sample/$sp_name-snps.metrics -stand_call_conf 10.0 -dcov 20000 -glm BOTH -I $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal.bam -o $dir_analyzed_sample/$sp_name-Unified-SNP-INDLE.vcf"
+time parallel -j $num_parallel "java -jar $dir_bin/GenomeAnalysisTK.jar -nt $threads -T UnifiedGenotyper -R $hg19  -L $bed  -metrics $dir_analyzed_sample/$sp_name-snps.metrics -stand_call_conf 10.0 -dcov 20000 -glm BOTH -I $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal.{}.bam -o $dir_analyzed_sample/$sp_name-Unified-SNP-INDLE.{}.vcf" ::: $chr
 
 #GARK HaplotypeCaller
 #time parallel -j $num_parallel "java -jar $dir_bin/GenomeAnalysisTK.jar -nct $threads -T HaplotypeCaller -L chr{} -R $hg19 -stand_call_conf 10.0 -minPruning 3  -mbq 5  -I $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal.{}.bam -o $dir_analyzed_sample/$sp_name-Haploy-SNP-INDLE.{}.vcf" :::$chr
-time parallel -j $num_parallel "java -jar $dir_bin/GenomeAnalysisTK.jar -nct $threads -T HaplotypeCaller -L $bed -R $hg19 -stand_call_conf 10.0 -minPruning 3  -mbq 5  -I $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal.{}.bam -o $dir_analyzed_sample/$sp_name-Haploy-SNP-INDLE.{}.vcf" :::$chr
+time parallel -j $num_parallel "java -jar $dir_bin/GenomeAnalysisTK.jar -nct $threads -T HaplotypeCaller -L $bed -R $hg19 -stand_call_conf 10.0 -minPruning 3  -mbq 5  -I $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal.{}.bam -o $dir_analyzed_sample/$sp_name-Haploy-SNP-INDLE.{}.vcf" ::: $chr
