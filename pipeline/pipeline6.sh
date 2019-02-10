@@ -4,19 +4,18 @@ set -x
 ulimit -n 65535
 
 #input file
-base='/home/test/WGS_pipeline'
-R1="$base/TEST/FASTQ_LAURA/412_1.fastq.gz"
-R2="$base/TEST/FASTQ_LAURA/412_1.fastq.gz"
+export base='/home/test/WGS_pipeline'
+export R1="$base/TEST/FASTQ_LAURA/412_1.fastq.gz"
+export R2="$base/TEST/FASTQ_LAURA/412_1.fastq.gz"
 #reference file
-hg19="$base/reference/hg19.fasta"
-dir_vcf="$base/reference"
-threads=36
-cores=18
-sp_name='pipe6-3.8'
-dir_analyzed_sample='/home/test/new_test_data/6150_base'
-dir_bin='/home/test/WGS_pipeline/TOOLS/bin'
-bed='/home/test/Agilent_S06588914_Covered.bed'
-
+export hg19="$base/reference/hg19.fasta"
+export dir_vcf="$base/reference"
+export threads=36
+export cores=18
+export sp_name='pipe7-3.8'
+export dir_analyzed_sample='/home/test/new_test_data/6150_base'
+export dir_bin='/home/test/WGS_pipeline/TOOLS/bin'
+export bed='/home/test/Agilent_S06588914_Covered.bed'
 
 # Align the reads
 time bash -c " ${dir_bin}/bwa mem  -t $threads  $hg19  $R1 $R2 | ${dir_bin}/samtools view -@ $threads -S -b > $dir_analyzed_sample/$sp_name-bwa.bam"
@@ -40,20 +39,20 @@ time bash -c "taskset -c 0-17  java -jar $dir_bin/GenomeAnalysisTK.jar -nt $core
 # IndelRealigner
 time bash -c "taskset -c 0-17  java -jar $dir_bin/GenomeAnalysisTK.jar  -T IndelRealigner -known $dir_vcf/Mills_and_1000G_gold_standard.indels.hg19.sites.vcf -known $dir_vcf/1000G_phase1.indels.hg19.sites.vcf -R $hg19 -I $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup.bam -targetIntervals $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup.bam.list -o $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned.bam"
 
-#BaseRecalibrator
-#time parallel -j $num_parallel "java -jar $dir_bin/GenomeAnalysisTK.jar  -nct $cores -T BaseRecalibrator -l INFO  -R $hg19   -knownSites $dir_vcf/Mills_and_1000G_gold_standard.indels.hg19.sites.vcf -knownSites $dir_vcf/1000G_phase1.indels.hg19.sites.vcf  -I  $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned.bam -o  $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned.grp -L {}" ::: $chr
 
+#BaseRecalibrator
+#time bash -c "taskset -c 0-17  java -jar $dir_bin/GenomeAnalysisTK.jar  -nct $cores -T BaseRecalibrator -l INFO  -R $hg19   -knownSites $dir_vcf/Mills_and_1000G_gold_standard.indels.hg19.sites.vcf -knownSites $dir_vcf/1000G_phase1.indels.hg19.sites.vcf  -I  $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned.bam -o  $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned.grp"
 # GATK PrintReads
 #time bash -c "taskset -c 0-17  java -jar $dir_bin/GenomeAnalysisTK.jar -nct 8 -T PrintReads -R $hg19 -I $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned.bam -BQSR $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned.grp -o $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal.bam"
 
+#create script for Scatter Gather for bqsr and HaplotypeCaller
 time python create_script.py
 #BaseRecalibrator
-time bash -c "taskset -c 0-17 parallel -j6 < bqsr.sh"
-
-time ./merge_bqsr.sh
+time bash -c "taskset -c 0-17 parallel -j6 < ./script/bqsr.sh"
+time ./script/merge_bqsr.sh
 # GATK PrintReads
-time bash -c "taskset -c 0-17 parallel -j6 < apply.sh"
-time ./merge_bam.sh
+time bash -c "taskset -c 0-17 parallel -j6 < ./script/apply.sh"
+time ./script/merge_bam.sh
 
 # Filter mapping quality <10
 #time bash -c "${dir_bin}/samtools view -@ $threads -h -q 10 $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal-0.bam |${dir_bin}/samtools view  -@ $threads -h -Sb > $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal.bam"
@@ -67,5 +66,6 @@ time bash -c "taskset -c 0-17  java -jar $dir_bin/GenomeAnalysisTK.jar -nt $core
 
 #GARK HaplotypeCaller
 #time java -jar $dir_bin/GenomeAnalysisTK.jar -nct  $threads -T HaplotypeCaller -R $hg19 -L $bed  -stand_call_conf 10.0 -stand_emit_conf 5.0  -minPruning 3  -mbq 5  -I $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal.bam -o $dir_analyzed_sample/$sp_name-Haploy-SNP-INDLE.vcf
-time bash -c "taskset -c 0-17 java -jar $dir_bin/GenomeAnalysisTK.jar -nct 8 -T HaplotypeCaller -R $hg19 -stand_call_conf 10.0 -minPruning 3  -mbq 5  -I $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal.bam -o $dir_analyzed_sample/$sp_name-Haploy-SNP-INDLE.vcf"
-
+#time bash -c "taskset -c 0-17 java -jar $dir_bin/GenomeAnalysisTK.jar -nct 4 -T HaplotypeCaller -R $hg19 -stand_call_conf 10.0 -minPruning 3  -mbq 5  -I $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal.bam -o $dir_analyzed_sample/$sp_name-Haploy-SNP-INDLE.vcf"
+time bash -c "taskset -c 0-17 parallel -j6 < ./script/htc.sh"
+time ./script/merge_htc.sh

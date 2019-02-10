@@ -1,20 +1,43 @@
+import os, sys, stat
 
+sp_name = os.environ["sp_name"]
+dir_vcf = os.environ["dir_vcf"]
+dir_analyzed_sample = os.environ["dir_analyzed_sample"]
+dir_bin = os.environ["dir_bin"]
+hg19=os.environ["hg19"]
 num_split=5
+num_nct="3"
 
-bqsr_str1 = "java -jar /home/test/WGS_pipeline/TOOLS/bin/GenomeAnalysisTK.jar  -nct 3 -T BaseRecalibrator -l INFO  -R /home/test/WGS_pipeline/reference/hg19.fasta   -knownSites /home/test/WGS_pipeline/reference/Mills_and_1000G_gold_standard.indels.hg19.sites.vcf -knownSites /home/test/WGS_pipeline/reference/1000G_phase1.indels.hg19.sites.vcf  -I  /home/test/new_test_data/6150_base/pipe6-3.8-ali-sorted-RG-rmdup-realigned.bam -o "
-bqsr_str2 = "/home/test/new_test_data/6150_base/pipe6-3.8-ali-sorted-RG-rmdup-realigned."
+
+bqsr_str1 = "java -jar " + dir_bin + "/GenomeAnalysisTK.jar  -nct " + num_nct + " -T BaseRecalibrator -l INFO  -R " + hg19 +  " -knownSites "+ dir_vcf +"/Mills_and_1000G_gold_standard.indels.hg19.sites.vcf -knownSites " + dir_vcf + "/1000G_phase1.indels.hg19.sites.vcf  -I " + dir_analyzed_sample + "/" + sp_name + "-ali-sorted-RG-rmdup-realigned.bam -o "
+bqsr_str2 = dir_analyzed_sample + "/" + sp_name + "-ali-sorted-RG-rmdup-realigned."
 bqsr_str3 = ".grp "
 
-merge_bqsr="java -cp /home/test/WGS_pipeline/TOOLS/bin/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.GatherBqsrReports O=/home/test/new_test_data/6150_base/pipe6-3.8-ali-sorted-RG-rmdup-realigned.grp "
+merge_bqsr="java -cp " + dir_bin + "/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.GatherBqsrReports O=" + dir_analyzed_sample + "/" + sp_name + "-ali-sorted-RG-rmdup-realigned.grp "
 
-apply_str1="java -jar /home/test/WGS_pipeline/TOOLS/bin/GenomeAnalysisTK.jar -nct 3 -T PrintReads -R /home/test/WGS_pipeline/reference/hg19.fasta -I /home/test/new_test_data/6150_base/pipe6-3.8-ali-sorted-RG-rmdup-realigned.bam -BQSR /home/test/new_test_data/6150_base/pipe6-3.8-ali-sorted-RG-rmdup-realigned.grp -o "
-apply_str2="/home/test/new_test_data/6150_base/pipe6-3.8-ali-sorted-RG-rmdup-realigned-recal." 
+apply_str1="java -jar " + dir_bin + "/GenomeAnalysisTK.jar -nct " + num_nct + " -T PrintReads -R " + hg19 +  " -I " + dir_analyzed_sample + "/" + sp_name + "-ali-sorted-RG-rmdup-realigned.bam -BQSR " + dir_analyzed_sample + "/" + sp_name + "-ali-sorted-RG-rmdup-realigned.grp -o "
+apply_str2= dir_analyzed_sample + "/" + sp_name + "-ali-sorted-RG-rmdup-realigned-recal." 
 apply_str3=".bam " 
 
-merge_bam="java -jar /home/test/WGS_pipeline/TOOLS/bin/picard.jar GatherBamFiles CREATE_INDEX=true CREATE_MD5_FILE=true OUTPUT=/home/test/new_test_data/6150_base/pipe6-3.8-ali-sorted-RG-rmdup-realigned-recal.bam "
-merge_bam_str1="/home/test/new_test_data/6150_base/pipe6-3.8-ali-sorted-RG-rmdup-realigned-recal."
+merge_bam="java -jar " + dir_bin + "/picard.jar GatherBamFiles CREATE_INDEX=true CREATE_MD5_FILE=true OUTPUT=" + dir_analyzed_sample + "/" + sp_name + "-ali-sorted-RG-rmdup-realigned-recal.bam "
+merge_bam_str1=dir_analyzed_sample + "/" + sp_name + "-ali-sorted-RG-rmdup-realigned-recal."
 merge_bam_str2=".bam"
 
+#time bash -c "taskset -c 0-17 java -jar $dir_bin/GenomeAnalysisTK.jar -nct 4 -T HaplotypeCaller -R $hg19 -stand_call_conf 10.0 -minPruning 3  -mbq 5  -I $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal.bam -o $dir_analyzed_sample/$sp_name-Haploy-SNP-INDLE.vcf"
+htc_str1 = "java -jar " + dir_bin + "/GenomeAnalysisTK.jar -nct " + num_nct + " -T HaplotypeCaller -R " + hg19 +  " -stand_call_conf 10.0 -minPruning 3 -mbq 5 -I " + dir_analyzed_sample + "/" + sp_name + "-ali-sorted-RG-rmdup-realigned-recal.bam -o "
+htc_str2 = dir_analyzed_sample + "/" + sp_name + "-Haploy-SNP-INDLE."
+htc_str3 = ".vcf "
+
+merge_htc="java -jar " + dir_bin + "/picard.jar MergeVcfs OUTPUT=" + dir_analyzed_sample + "/" + sp_name + "-Haploy-SNP-INDLE.vcf "
+merge_htc_str1=dir_analyzed_sample + "/" + sp_name + "-Haploy-SNP-INDLE."
+merge_htc_str2=".vcf "
+
+#create script directory
+import os, sys
+if os.path.isdir("./script"):
+    pass
+else:
+    os.mkdir("./script", 0755)
 
 
 with open("/home/test/WGS_pipeline/reference/hg19.dict", "r") as ref_dict_file:
@@ -58,7 +81,7 @@ while count < lenght :
     cli += bqsr_str1 + bqsr_str2 + str(count) + bqsr_str3 + bqsr_list[count] + "\n"
     count += 1
 
-with open("bqsr.sh", "w") as bqsr_file:
+with open("./script/bqsr.sh", "w") as bqsr_file:
   bqsr_file.write(cli)
   bqsr_file.close()
 
@@ -70,9 +93,36 @@ while count < lenght :
     count += 1
 
 cli += "\n"
-with open("merge_bqsr.sh", "w") as merge_bqsr_file:
+with open("./script/merge_bqsr.sh", "w") as merge_bqsr_file:
   merge_bqsr_file.write(cli)
   merge_bqsr_file.close()
+
+
+
+count = 0
+cli=""
+htc_list = tsv_string.splitlines()
+lenght = len(htc_list)
+while count < lenght :
+    cli += htc_str1 + htc_str2 + str(count) + htc_str3 + htc_list[count] + "\n"
+    count += 1
+
+with open("./script/htc.sh", "w") as htc_file:
+  htc_file.write(cli)
+  htc_file.close()
+
+count=0
+cli=merge_htc
+lenght = len(htc_list)
+while count < lenght :    
+    cli += "INPUT=" + merge_htc_str1 + str(count) + merge_htc_str2 + " "    
+    count += 1
+
+cli += "\n"
+with open("./script/merge_htc.sh", "w") as merge_htc_file:
+  merge_htc_file.write(cli)
+  merge_htc_file.close()
+
 
 
 # add the unmapped sequences as a separate line to ensure that they are recalibrated as well
@@ -94,7 +144,7 @@ while count < lenght :
     cli += apply_str1 + apply_str2 + str(count) + apply_str3 + bqsr_list[count] + "\n"
     count += 1
 
-with open("apply.sh", "w") as apply_file:
+with open("./script/apply.sh", "w") as apply_file:
   apply_file.write(cli)
   apply_file.close()
 
@@ -107,13 +157,15 @@ while count < lenght :
     count += 1
 
 cli += "\n"
-with open("merge_bam.sh", "w") as merge_bam_file:
+with open("./script/merge_bam.sh", "w") as merge_bam_file:
   merge_bam_file.write(cli)
   merge_bam_file.close()
 
 
-import os, sys, stat
-os.chmod("bqsr.sh", stat.S_IEXEC)
-os.chmod("apply.sh", stat.S_IEXEC)
-os.chmod("merge_bqsr.sh", stat.S_IEXEC)
-os.chmod("merge_bam.sh", stat.S_IEXEC)
+#set the execute for the shell
+os.chmod("./script/bqsr.sh", stat.S_IEXEC)
+os.chmod("./script/apply.sh", stat.S_IEXEC)
+os.chmod("./script/merge_bqsr.sh", stat.S_IEXEC)
+os.chmod("./script/merge_bam.sh", stat.S_IEXEC)
+os.chmod("./script/htc.sh", stat.S_IEXEC)
+os.chmod("./script/merge_htc.sh", stat.S_IEXEC)
