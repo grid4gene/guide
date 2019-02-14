@@ -6,7 +6,7 @@ dir_analyzed_sample = os.environ["dir_analyzed_sample"]
 dir_bin = os.environ["dir_bin"]
 hg19=os.environ["hg19"]
 num_split=5
-num_nct="3"
+num_nct="4"
 
 
 bqsr_str1 = "java -jar " + dir_bin + "/GenomeAnalysisTK.jar  -nct " + num_nct + " -T BaseRecalibrator -l INFO  -R " + hg19 +  " -knownSites "+ dir_vcf +"/Mills_and_1000G_gold_standard.indels.hg19.sites.vcf -knownSites " + dir_vcf + "/1000G_phase1.indels.hg19.sites.vcf  -I " + dir_analyzed_sample + "/" + sp_name + "-ali-sorted-RG-rmdup-realigned.bam -o "
@@ -23,7 +23,6 @@ merge_bam="java -jar " + dir_bin + "/picard.jar GatherBamFiles CREATE_INDEX=true
 merge_bam_str1=dir_analyzed_sample + "/" + sp_name + "-ali-sorted-RG-rmdup-realigned-recal."
 merge_bam_str2=".bam"
 
-#time bash -c "taskset -c 0-17 java -jar $dir_bin/GenomeAnalysisTK.jar -nct 4 -T HaplotypeCaller -R $hg19 -stand_call_conf 10.0 -minPruning 3  -mbq 5  -I $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal.bam -o $dir_analyzed_sample/$sp_name-Haploy-SNP-INDLE.vcf"
 htc_str1 = "java -jar " + dir_bin + "/GenomeAnalysisTK.jar -nct " + num_nct + " -T HaplotypeCaller -R " + hg19 +  " -stand_call_conf 10.0 -minPruning 3 -mbq 5 -I " + dir_analyzed_sample + "/" + sp_name + "-ali-sorted-RG-rmdup-realigned-recal.bam -o "
 htc_str2 = dir_analyzed_sample + "/" + sp_name + "-Haploy-SNP-INDLE."
 htc_str3 = ".vcf "
