@@ -1,11 +1,11 @@
 #!/bin/bash
 set -x
 
-export base='/home/test/WGS_pipeline'
-export input='/mnt/disk_nvme/WGS/input'
-export output='/mnt/disk_nvme/WGS/output'
-export reference='/mnt/disk_nvme/WGS/reference'
-export tools='/mnt/disk_nvme/WGS/tools'
+export base='/home/test'
+export input='/home/test/input'
+export output='/home/wgs_output'
+export reference='/home/reference'
+export tools='/home/tools'
 
 #input file
 export R1="$input/412_1.fastq.gz"
@@ -16,11 +16,11 @@ export dir_vcf="$reference"
 export bed="$reference/Agilent_S06588914_Covered.bed"
 #output file
 export dir_analyzed_sample="$output"
-export sp_name="6139-18c-3.8"
+export sp_name="6154-3.8"
 #tools
 export dir_bin="$tools"
 
-export threads=36
+export threads=18
 export cores=18
 
 # Align the reads
