@@ -1,11 +1,11 @@
 #!/bin/bash
 set -x
 
-export base='/home/test/WGS_pipeline'
-export input='/mnt/disk_nvme/WGS/input'
-export output='/mnt/disk_nvme/WGS/output'
-export reference='/mnt/disk_nvme/WGS/reference'
-export tools='/mnt/disk_nvme/WGS/tools'
+export base='/home/test'
+export input='/home/test/input'
+export output='/home/wgs_output'
+export reference='/home/reference'
+export tools='/home/tools'
 
 #input file
 export R1="$input/NA12878_R1_001.fastq.gz"
@@ -16,15 +16,15 @@ export dir_vcf="$reference"
 export bed="$reference/Agilent_S06588914_Covered.bed"
 #output file
 export dir_analyzed_sample="$output"
-export sp_name="6139-18c-WGS-3.8"
+export sp_name="6154-3.8"
 #tools
 export dir_bin="$tools"
 
-export threads=36
+export threads=18
 export cores=18
 
 # Align the reads
-time bash -c " ${dir_bin}/bwa mem  -t $threads  $hg19  $R1 $R2 | ${dir_bin}/samtools view -@ $threads -S -b > $dir_analyzed_sample/$sp_name-bwa.bam"
+time bash -c "taskset -c 0-17 ${dir_bin}/bwa mem  -t $threads  $hg19  $R1 $R2 | ${dir_bin}/samtools view -@ $threads -S -b > $dir_analyzed_sample/$sp_name-bwa.bam"
 # filter reads un-mapped reads and sort bam file
 time bash -c "taskset -c 0-17 ${dir_bin}/samtools view -@ $cores -b -h  -F 4 $dir_analyzed_sample/$sp_name-bwa.bam  > $dir_analyzed_sample/$sp_name-ali.bam"
 # Sorting BAM
@@ -36,12 +36,6 @@ time bash -c "taskset -c 0-17  java -jar ${dir_bin}/picard.jar AddOrReplaceReadG
 # Remove duplicates
 time bash -c "taskset -c 0-17  java -XX:+UseParallelGC -XX:ParallelGCThreads=2 -jar ${dir_bin}/picard.jar MarkDuplicates  REMOVE_DUPLICATES=FALSE CREATE_INDEX=TRUE VALIDATION_STRINGENCY=LENIENT MAX_RECORDS_IN_RAM=4000000 ASSUME_SORTED=TRUE I=$dir_analyzed_sample/$sp_name-ali-sorted-RG.bam  O=$dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup.bam  METRICS_FILE=$dir_analyzed_sample/$sp_name-pacard.metrics"
 
-#remove early output to save disk space, as we only have 1T disk
-yes|rm $dir_analyzed_sample/$sp_name-bwa.bam
-yes|rm $dir_analyzed_sample/$sp_name-ali.bam
-yes|rm $dir_analyzed_sample/$sp_name-ali-sorted.bam
-yes|rm $dir_analyzed_sample/$sp_name-ali-sorted-RG.bam
-
 # index BAM
 time bash -c "taskset -c 0-17  ${dir_bin}/samtools index -@ $cores $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup.bam"
 
@@ -50,7 +44,6 @@ time bash -c "taskset -c 0-17  java -jar $dir_bin/GenomeAnalysisTK.jar -nt $core
 
 # IndelRealigner
 time bash -c "taskset -c 0-17  java -jar $dir_bin/GenomeAnalysisTK.jar  -T IndelRealigner -known $dir_vcf/Mills_and_1000G_gold_standard.indels.hg19.sites.vcf -known $dir_vcf/1000G_phase1.indels.hg19.sites.vcf -R $hg19 -I $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup.bam -targetIntervals $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup.bam.list -o $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned.bam"
-
 
 #BaseRecalibrator
 #time bash -c "taskset -c 0-17  java -jar $dir_bin/GenomeAnalysisTK.jar  -nct $cores -T BaseRecalibrator -l INFO  -R $hg19   -knownSites $dir_vcf/Mills_and_1000G_gold_standard.indels.hg19.sites.vcf -knownSites $dir_vcf/1000G_phase1.indels.hg19.sites.vcf  -I  $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned.bam -o  $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned.grp"

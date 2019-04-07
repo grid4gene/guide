@@ -1,11 +1,13 @@
 #!/bin/bash
 set -x
 
-export base='/home/test/WGS_pipeline'
-export input='/mnt/disk_nvme/WGS/input'
-export output='/mnt/disk_nvme/WGS/output'
-export reference='/mnt/disk_nvme/WGS/reference'
-export tools='/mnt/disk_nvme/WGS/tools'
+
+export base='/home/test'
+export input='/home/test/input'
+export output='/home/wgs_output'
+export reference='/home/reference'
+export tools='/home/tools'
+
 
 #input file
 export R1="$input/NA12878_R1_001.fastq.gz"
@@ -16,7 +18,7 @@ export dir_vcf="$reference"
 export bed="$reference/Agilent_S06588914_Covered.bed"
 #output file
 export dir_analyzed_sample="$output"
-export sp_name="6139-18c-WGS-3.8"
+export sp_name="6154-36c-WGS-3.8"
 #tools
 export dir_bin="$tools"
 
@@ -36,12 +38,6 @@ time bash -c " java -jar ${dir_bin}/picard.jar AddOrReplaceReadGroups  I=$dir_an
 
 # Remove duplicates
 time bash -c " java -XX:+UseParallelGC -XX:ParallelGCThreads=2 -jar ${dir_bin}/picard.jar MarkDuplicates  REMOVE_DUPLICATES=FALSE CREATE_INDEX=TRUE VALIDATION_STRINGENCY=LENIENT MAX_RECORDS_IN_RAM=4000000 ASSUME_SORTED=TRUE I=$dir_analyzed_sample/$sp_name-ali-sorted-RG.bam  O=$dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup.bam  METRICS_FILE=$dir_analyzed_sample/$sp_name-pacard.metrics"
-
-#remove early output to save disk space, as we only have 1T disk
-yes|rm $dir_analyzed_sample/$sp_name-bwa.bam
-yes|rm $dir_analyzed_sample/$sp_name-ali.bam
-yes|rm $dir_analyzed_sample/$sp_name-ali-sorted.bam
-yes|rm $dir_analyzed_sample/$sp_name-ali-sorted-RG.bam
 
 # index BAM
 time bash -c " ${dir_bin}/samtools index -@ $cores $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup.bam"
@@ -74,7 +70,7 @@ time ./script/merge_bam.sh
 time bash -c " ${dir_bin}/samtools index -@ $cores $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal.bam"
 
 # GATK UnifiedGenotyper
-time bash -c " java -jar $dir_bin/GenomeAnalysisTK.jar -nt $cores -T UnifiedGenotyper -R $hg19  -metrics $dir_analyzed_sample/$sp_name-snps.metrics -stand_call_conf 10.0 -dcov 20000 -glm BOTH -I $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal.bam -o $dir_analyzed_sample/$sp_name-Unified-SNP-INDLE.vcf"
+time bash -c " java -Xms128G -jar $dir_bin/GenomeAnalysisTK.jar -nt $cores -T UnifiedGenotyper -R $hg19  -metrics $dir_analyzed_sample/$sp_name-snps.metrics -stand_call_conf 10.0 -dcov 20000 -glm BOTH -I $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal.bam -o $dir_analyzed_sample/$sp_name-Unified-SNP-INDLE.vcf"
 #time bash -c " java -jar $dir_bin/GenomeAnalysisTK.jar -nt $cores -T UnifiedGenotyper -R $hg19  -L $bed  -metrics $dir_analyzed_sample/$sp_name-snps.metrics -stand_call_conf 10.0 -dcov 20000 -glm BOTH -I $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal.bam -o $dir_analyzed_sample/$sp_name-Unified-SNP-INDLE.vcf"
 #time java -jar $dir_bin/GenomeAnalysisTK.jar -nt $threads -T UnifiedGenotyper -R $hg19  -metrics $dir_analyzed_sample/$sp_name-snps.metrics -stand_call_conf 10.0 -stand_emit_conf 5.0 -dcov 20000 -glm BOTH -I $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal.bam -o $dir_analyzed_sample/$sp_name-Unified-SNP-INDLE.vcf
 

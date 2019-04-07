@@ -5,6 +5,7 @@ dir_vcf = os.environ["dir_vcf"]
 dir_analyzed_sample = os.environ["dir_analyzed_sample"]
 dir_bin = os.environ["dir_bin"]
 hg19=os.environ["hg19"]
+reference=os.environ["reference"]
 num_split=7
 num_nct="4"
 
@@ -39,7 +40,7 @@ else:
     os.mkdir("./script", 0755)
 
 
-with open("/home/test/WGS_pipeline/reference/hg19.dict", "r") as ref_dict_file:
+with open(reference+"/hg19.dict", "r") as ref_dict_file:
     sequence_tuple_list = []
     longest_sequence = 0
     for line in ref_dict_file:
