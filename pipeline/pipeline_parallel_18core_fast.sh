@@ -7,6 +7,7 @@ export output='/home/output'
 export reference='/home/reference'
 export tools='/home/tools'
 
+
 export sample="412"
 #input file
 export R1="$input/${sample}_1.fastq.gz"
@@ -17,25 +18,33 @@ export dir_vcf="$reference"
 export bed="$reference/Agilent_S06588914_Covered.bed"
 #output file
 export dir_analyzed_sample="$output"
-export sp_name="pipe-3.8-"$sample
+export sp_name="pipe-3.8-fast-"$sample
 #tools
 export dir_bin="$tools"
 
 export threads=18
 export cores=18
 
+ReadGroup="@RG\tID:${sample}_${cores}T\tLB:${sample}\tSM:${sample}\tPL:ILLUMINA"
+
 # Align the reads
-time bash -c "taskset -c 0-17 ${dir_bin}/bwa mem  -t $threads  $hg19  $R1 $R2 | ${dir_bin}/samtools view -@ $threads -S -b > $dir_analyzed_sample/$sp_name-bwa.bam"
+#${dir_bin}/bwa mem -K 100000000 -v 3 -t $threads -R"$ReadGroup" $hg19  $R1 $R2 | ${dir_bin}/samtools view -@ $threads -S -b > $dir_analyzed_sample/$sp_name-bwa.bam
+${dir_bin}/bwa mem -K 100000000 -v 3 -t $threads -R"$ReadGroup" $hg19  $R1 $R2 | ${dir_bin}/samtools view -@ 6 -1 -h  -F 4 -S -b > $dir_analyzed_sample/$sp_name-ali.bam
+
+
 # filter reads un-mapped reads and sort bam file
-time bash -c "taskset -c 0-17 ${dir_bin}/samtools view -@ $cores -b -h  -F 4 $dir_analyzed_sample/$sp_name-bwa.bam  > $dir_analyzed_sample/$sp_name-ali.bam"
+#time bash -c "taskset -c 0-17 ${dir_bin}/samtools view -1 -@ $cores -b -h  -F 4 $dir_analyzed_sample/$sp_name-bwa.bam  > $dir_analyzed_sample/$sp_name-ali.bam"
+
 # Sorting BAM
 time bash -c "taskset -c 0-17  ${dir_bin}/samtools sort -@ $cores $dir_analyzed_sample/$sp_name-ali.bam  -o $dir_analyzed_sample/$sp_name-ali-sorted.bam"
 
+# Don't need it, as we add the reading group in the bwa mem
 # Add ReadGroup
-time bash -c "taskset -c 0-17  java -jar ${dir_bin}/picard.jar AddOrReplaceReadGroups  I=$dir_analyzed_sample/$sp_name-ali-sorted.bam  O=$dir_analyzed_sample/$sp_name-ali-sorted-RG.bam  RGSM=$sp_name RGLB=project RGPL=illumina RGID=none RGPU=none VALIDATION_STRINGENCY=LENIENT"
+#time bash -c "taskset -c 0-17  java -jar ${dir_bin}/picard.jar AddOrReplaceReadGroups  I=$dir_analyzed_sample/$sp_name-ali-sorted.bam  O=$dir_analyzed_sample/$sp_name-ali-sorted-RG.bam  RGSM=$sp_name RGLB=project RGPL=illumina RGID=none RGPU=none VALIDATION_STRINGENCY=LENIENT"
 
 # Remove duplicates
-time bash -c "taskset -c 0-17  java -XX:+UseParallelGC -XX:ParallelGCThreads=2 -jar ${dir_bin}/picard.jar MarkDuplicates  REMOVE_DUPLICATES=FALSE CREATE_INDEX=TRUE VALIDATION_STRINGENCY=LENIENT MAX_RECORDS_IN_RAM=4000000 ASSUME_SORTED=TRUE I=$dir_analyzed_sample/$sp_name-ali-sorted-RG.bam  O=$dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup.bam  METRICS_FILE=$dir_analyzed_sample/$sp_name-pacard.metrics"
+time bash -c "taskset -c 0-17  java -XX:+UseParallelGC -XX:ParallelGCThreads=2 -jar ${dir_bin}/picard.jar MarkDuplicates  REMOVE_DUPLICATES=FALSE CREATE_INDEX=TRUE VALIDATION_STRINGENCY=LENIENT MAX_RECORDS_IN_RAM=4000000 ASSUME_SORTED=TRUE I=$dir_analyzed_sample/$sp_name-ali-sorted.bam  O=$dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup.bam  METRICS_FILE=$dir_analyzed_sample/$sp_name-pacard.metrics"
+
 
 # index BAM
 time bash -c "taskset -c 0-17  ${dir_bin}/samtools index -@ $cores $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup.bam"
@@ -75,3 +84,4 @@ time bash -c "taskset -c 0-17  java -jar $dir_bin/GenomeAnalysisTK.jar -nt $core
 #time bash -c "taskset -c 0-17 java -jar $dir_bin/GenomeAnalysisTK.jar -nct 4 -T HaplotypeCaller -R $hg19 -stand_call_conf 10.0 -minPruning 3  -mbq 5  -I $dir_analyzed_sample/$sp_name-ali-sorted-RG-rmdup-realigned-recal.bam -o $dir_analyzed_sample/$sp_name-Haploy-SNP-INDLE.vcf"
 time bash -c "taskset -c 0-17 parallel -j6 < ./script/htc.sh"
 time ./script/merge_htc.sh
+

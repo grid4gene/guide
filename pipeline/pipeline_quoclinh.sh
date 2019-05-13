@@ -4,17 +4,20 @@ set -x
 ulimit -n 65535
 
 #input file
-base='/home/test/WGS_pipeline'
-R1="$base/TEST/FASTQ_LAURA/412_1.fastq.gz"
-R2="$base/TEST/FASTQ_LAURA/412_1.fastq.gz"
+base='/home'
+
+sample="412"
+#input file
+R1="$input/${sample}_1.fastq.gz"
+R2="$input/${sample}_2.fastq.gz"
 #reference file
 hg19="$base/reference/hg19.fasta"
 dir_vcf="$base/reference"
-threads=15
-sp_name='pipe3-3.7'
-dir_analyzed_sample='/home/test/new_test_data/6150_base'
-dir_bin='/home/test/WGS_pipeline/TOOLS/bin'
-bed='/home/test/Agilent_S06588914_Covered.bed'
+threads=18
+sp_name='pipe-3.7-origin-'$sample
+dir_analyzed_sample='/home/output'
+dir_bin='/home/tools'
+bed="$base/reference/Agilent_S06588914_Covered.bed"
 
 
 time ${dir_bin}/bwa mem  -t $threads  $hg19  $R1 $R2 | ${dir_bin}/samtools view -S -b > $dir_analyzed_sample/$sp_name-bwa.bam
